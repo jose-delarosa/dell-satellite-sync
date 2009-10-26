@@ -1,0 +1,4 @@
+* Write failures to a logfile
+* Create config file at /etc/sysconfig/dell/dell-satellite-sync
+* Unsubscribe clients from any Dell channels with --delete
+* Create rpm and sign it

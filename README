@@ -1,0 +1,88 @@
+Introduction
+------------
+
+dell-satellite-sync is a solution for taking Dell's official Linux software repositories, and replicating them into an RHN Satellite or Spacewalk server, and subscribing any registered Dell systems to the correct child channel.
+
+The process is:
+
+   1. rsync a copy of Dell's official repositories to a local directory
+   2. For each existing base channel on the server, creates child channels that correspond to the repository for each Dell hardware system
+   3. Populates each child channel with rpms from the local copy of the repositories
+   4. For each registered system that has a vendor id of Dell, schedule the following actions:
+         1. Install Dell's GPG keys
+         2. Install smbios-utils which is used to determine the hardware specific system id
+         3. Subscribe the systems to their specific child channels based on their hardware system id 
+
+Pre-requisites
+--------------
+
+dell-satellite-sync can be run from any system that has network access to the RHN Satellite or Spacewalk server, and can be run as a non-root user.
+
+In order for the server-side actions to complete, the following conditions must be met on the system that dell-satellite-sync is run from:
+
+   1. The system needs access to linux.dell.com, or must already have a local copy of the entire Dell official repositories
+   2. The rpm rhnpush must be installed
+   3. The username and password to the RHN Satellite or Spacewalk server used must have access to create child channels under any base channels, and upload rpms via rhnpush 
+
+For the client-side actions to complete, the following conditions must be met on the system that dell-satellite-sync is run from:
+
+   1. The username and password to the RHN Satellite or Spacewalk server used must have access to install packages, schedule remote actions, and subscribe systems to channels
+   2. All registered systems must be subscribed to their respective rhn-tools child channel
+   3. The rpm rhncfg-actions must be installed
+   4. Remote actions must be allowed by running rhn-actions-control --enable-run - this can be done through an rpm and pushed to the clients, or by another means outside of Satellite/Spacewalk
+   5. If the systems have the provisioning entitlement, it is recommended that they also have the osad package installed - this will allow remote actions to be executed very quickly, rather than waiting for the system to check-in 
+
+Usage
+-----
+
+  [vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py -h
+  usage: dell-satellite-sync.py [options]
+  This program will rsync an offline repository from linux.dell.com, then create 
+  Satellite channels and populate them with the rpms, and subscribe registered
+  clients to the correct channels.
+  Use -h or --help for additional information.
+  
+  options:
+    -h, --help            show this help message and exit
+    -u USER, --user=USER  Satellite username
+    -p PASSWORD, --password=PASSWORD
+                          Satellite password (will be promoted if omitted)
+    -s SATSERVER, --server=SATSERVER
+                          FQDN of your Satellite server
+    -l LOCALDIR, --localdir=LOCALDIR
+                          local dir to hold Dell repo
+    -d, --delete          delete existing Dell channels and packages
+    -f, --force           force package upload
+    -a, --all             subscribe all systems, whether Dell vendor or not.
+    -g GPG_URL, --gpg-url=GPG_URL
+                          URL where the GPG keys are located (should be
+                          accessible by clients.  e.g.
+                          http://satserver.example.com/pub/).
+    --no-rsync            skip rsync (local repo must already be present)
+    --no-packages         skip uploading packages
+    -S, --server-actions-only
+                          only create channels and upload rpms, skip client
+                          subscription
+    -C, --client-actions-only
+                          only subscribe clients (channels and rpms must already
+                          be on server)
+    -D, --demo            enable demo mode (simulation only, does not connect to
+                          a Satellite server)
+    -v, --verbose         enable verbose output
+    --debug               enable lots of debug output (more than verbose)
+
+Examples
+--------
+
+Run entire process, useful options for scheduling a cron job:
+
+[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py --server satellite.example.com --user satadmin --password my_password --localdir /home/vinny/dell-repo/ --gpg-url http://satellite.example.com/pub/ --force
+
+Run server-side actions only, prompt for password:
+
+[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py --server satellite.example.com --user satadmin --no-rsync --localdir /home/vinny/dell-repo/ --force --server-actions-only
+
+Run client-side actions only, prompt for password, and display verbose output:
+
+[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py  --server satellite.example.com --user satadmin --verbose --client-actions-only 
+
