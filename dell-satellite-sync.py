@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
 # _author = Vinny Valdez <vvaldez@redhat.com>
+# _version = 0.2
 #
 # Copyright (c) 2009 Red Hat, Inc.
 #
@@ -14,7 +15,6 @@
 # Red Hat trademarks are not licensed under GPLv2. No permission is
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation. 
-#
 
 import xmlrpclib, os, sys, signal, time, re, getpass, subprocess
 from xml.dom import minidom
@@ -78,7 +78,7 @@ parser.add_option("-p", "--password", dest="password", help="Satellite password 
 parser.add_option("-s", "--server", dest="satserver", help="FQDN of your Satellite server", default=SATELLITE_SERVER)
 parser.add_option("-l", "--localdir", dest="localdir", help="local dir to hold Dell repo", default=LOCAL_REPO)
 parser.add_option("-d", "--delete", action="store_true", dest="delete", help="delete existing Dell channels and packages", default=False)
-parser.add_option("-f", "--force", action="store_true", dest="force", help="force package upload", default=False)
+parser.add_option("-f", "--force", action="store_true", dest="force", help="force package upload)", default=False)
 parser.add_option("-a", "--all", action="store_true", dest="subscribe_all", help="subscribe all systems, whether Dell vendor or not.", default=False)
 parser.add_option("-g", "--gpg-url", dest="gpg_url", help="URL where the GPG keys are located (should be accessible by clients.  e.g. http://satserver.example.com/pub/).", default=GPG_URL)
 parser.add_option("--no-rsync", action="store_true", dest="no_rsync", help="skip rsync (local repo must already be present)", default=False)
@@ -122,16 +122,18 @@ else:
 client = xmlrpclib.Server(sat_url, verbose = client_verbose)
 
 def get_size(dir):
+	'''Calls "du -hs" to get directory tree size'''
 	du = subprocess.Popen(["du", "-hs", dir], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	du.wait()
 	output, errors = du.communicate()
-	if options.debug: print errors
+	if options.debug: 
+		if not errors == '':
+			print errors
 	return output.split()[0]
 	
 def rsync(url, localdir):
-	# Call rsync as a subprocess, then wait for it to complete
-	# Display simple spinning line for progress
-	# TODO: Enable output for verbose - Currently process hangs due to too much output
+	'''Calls rsync, displays spinning line for progress, and updates dir size'''
+	# TODO: Enable output for verbose - Currently process hangs, possibly due to too much output
 	if options.debug:
 		tick = 0
 	else:
@@ -151,7 +153,7 @@ def rsync(url, localdir):
 					size += 50 
 		else:
 			size = get_size(localdir)
-			rsync = subprocess.Popen(["rsync", "-aqH", "rsync://"+url, localdir], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			rsync = subprocess.Popen(["rsync", "-azqH", "rsync://"+url, localdir], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			print "Waiting for rsync process to finish (pid ", rsync.pid,"\b):           ",
 			bar_char = 0
 			while rsync.poll() is None:
@@ -172,7 +174,6 @@ def rsync(url, localdir):
 		os.kill(rsync.pid, signal.SIGKILL)
 		sys.exit(1)
 	if options.demo:
-	#TODO
 		sys.exit(1)
 		return 0
 	else:
@@ -182,15 +183,19 @@ def rsync(url, localdir):
 		return rsync.returncode
 
 def get_dell_repo(repo, localdir):
+	'''Calls the rsync function to obtain a local copy of Dell's repos'''
 	return rsync(repo, localdir)
 
 def login(user, password):
+	'''Login to the Satellite server'''
 	return client.auth.login(user, password)
 
 def logout(key):
+	'''Logout of the Satellite server'''
 	client.auth.logout(key)
 
 def channel_exists(key, channel, channels):
+	'''Check if channel exists in the list of channels'''
 	if options.demo: return False
 	for curchan in channels:
 		if channel == curchan['label']:
@@ -200,36 +205,40 @@ def channel_exists(key, channel, channels):
 	return False
 
 def create_channel(key, label, name, summary, arch, parent):
+	'''Creates a temporary channel, then clones it with GPG key location, then deletes temp channel'''
 	if PLATFORM_INDEPENDENT in label:
 		channel_map = { 'name' : name, 'label' : label, 'summary' : summary, 'parent_label' : parent, 'gpg_url' : options.gpg_url + 'RPM-GPG-KEY-libsmbios' }
 	else:
 		channel_map = { 'name' : name, 'label' : label, 'summary' : summary, 'parent_label' : parent, 'gpg_url' : options.gpg_url + 'RPM-GPG-KEY-dell' }
 	try:
 		if options.verbose: print "Creating temporary channel:", label + '-tmp'
+		if options.debug: print "Running: client.channel.software.create(", key, label + '-tmp', name + '-tmp', summary, arch, parent, ")"
 		client.channel.software.create(key, label + '-tmp', name + '-tmp', summary, arch, parent)
 	except:
 		print "Error creating temporary channel:", label + '-tmp'
 		raise
 	try:
 		if options.verbose: print "Cloning temporary channel into real channel:", label
-		print "Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
+		if options.debug: print "Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
 		client.channel.software.clone(key, label + '-tmp', channel_map, True)
 	except:
 		print "Error cloning channel:", label
 		raise
 	try:
 		if options.verbose: print "Deleting temporary channel:", label + '-tmp'
+		if options.debug: print "Running: client.channel.software.delete(", key, label + '-tmp', ")"
 		client.channel.software.delete(key, label + '-tmp')
 	except:
 		print "Error deleting channel:", label + '-tmp'
 		raise
 
 def delete_channel(key, label):
+	'''Deletes a channel on the Satellite server'''
 	if options.verbose: print "Deleting channel:", label
 	return client.channel.software.delete(key, label)
 
 def build_channel_list(localdir, vendor_id):
-	# Create a mapping of dirs to their symlink target to use as channel labels/names
+	'''Creates a mapping of dirs to their symlink target to use as channel labels/names'''
 	dir_list = os.listdir(localdir)
 	systems = {}
 	for dir in dir_list:
@@ -246,7 +255,7 @@ def build_channel_list(localdir, vendor_id):
 	return systems
 
 def gen_rpm_list(path):
-	# Walk dir tree in path and return a list of rpms found
+	'''Walk dir tree in path and return a list of rpms found'''
 	rpms = []
 	if os.path.isdir(path):		# Dir should exist, but just to be safe
 		os.chdir(path)
@@ -261,7 +270,7 @@ def gen_rpm_list(path):
 	return rpms
 
 def push_rpm(rpm, channel, user, password, satserver):
-	# push rpm into Satellite using rhnpush as needed.
+	'''Push rpm into Satellite using rhnpush as needed'''
 	if options.debug:
 		verbose_flag = '-vv'
 	elif options.verbose:
@@ -293,13 +302,15 @@ def push_rpm(rpm, channel, user, password, satserver):
 		return 0
 	else:
 		output, errors = rhnpush.communicate()
-		if options.verbose: print output
-		if not errors == '':
-			print "stderr on rhnpush process:\n", errors
-		if options.verbose: print "rhnpush exited with returncode:", rhnpush.returncode
+		if (options.verbose) or (not rhnpush.returncode == 0): 
+			print output
+			if not errors == '':
+				print "stderr on rhnpush process:\n", errors
+			print "rhnpush exited with returncode:", rhnpush.returncode
 		return rhnpush.returncode
 
 def subscribe(key, base_channel, new_channel, system_id):
+	'''Subscribes system_id to new_channel'''
 	# Get a list of current child channels, since subscribe removes all channels
 	channels = client.system.list_subscribed_child_channels(key, system_id)
 	channel_labels = []
@@ -320,6 +331,7 @@ def subscribe(key, base_channel, new_channel, system_id):
 	return client.system.set_child_channels(key, system_id, channel_labels)
 
 def subscribe_clients(key):
+	'''Creates list of registered clients, and subscribes them to the platform_independent channel'''
 	systems = client.system.list_systems(key)
 	skipped = []
 	scheduled = []
@@ -333,7 +345,7 @@ def subscribe_clients(key):
 			vendor = system_dmi['vendor']
 		if options.verbose: print "System vendor is:", vendor
 		if not ('Dell' in vendor or options.subscribe_all):
-			#TODO - instead of exit and printing error, write to logfile (figure out how to open and append to a file)
+			#TODO - write skipped systems to a logfile or print out at end.  Eventually add mechanism to retry these
 			skipped.append(system['id'])
 			print "System vendor is '%s', skipping.  Force with --all if desired." % (vendor)
 			if options.verbose: print "Removing %s from list" % (system['name'])
@@ -357,6 +369,7 @@ def subscribe_clients(key):
 	return systems
 
 def schedule_actions(key, systems):
+	'''Schedules GPG key install, package install, and "smbios-sys-info" action on clients'''
 	gpg_script = '''
 #!/bin/bash
 # Check if libsmbios gpg key is installed
@@ -413,6 +426,7 @@ fi
 	return systems
 
 def get_action_results(key, systems):
+	'''Gets action results that have been scheduled'''
 	if options.debug:
 		wait = 5
 	elif options.verbose:
@@ -468,7 +482,7 @@ def get_action_results(key, systems):
 	return systems
 
 def reconstruct_name(package):
-	# Take dictionary of package name in Satellite and reconstruct the full name
+	'''Take dictionary of package name in Satellite and reconstruct the full name'''
 	# Map: name, version, release, epoch, arch_label
 	if package['epoch'] == '':
 		full_name = '-'.join([package['name'], package['version'], package['release']])
@@ -492,9 +506,11 @@ def main():
 		if options.debug: print "DEBUG: Channels on current Satellite server:", current_channel_labels
 	
 	if client.api.get_version() < 5.1:
+		# TODO: Haven't tested with Spacewalk, not sure how it is reported
 		print "This script uses features not available with Satellite versions older than 5.1"
 		sys.exit(1)
 	if not options.client_actions_only:
+		# This begins the server actions section
 		if not os.path.exists(options.localdir):
 			try:
 				os.makedirs(options.localdir)
@@ -507,12 +523,11 @@ def main():
 			if not returncode == 0:
 				print "rsync process exited with returncode:", returncode
 		# Build child channels based on dell repo as needed
-		#TODO - check if options.localdir exists, if not create it, error if can't
 		systems = build_channel_list(options.localdir, SYSTEM_VENDOR_ID)
 		systems['platform_independent'] = PLATFORM_INDEPENDENT
 		# Iterate through list of supported RHEL versions and archs, create parent channels if needed
 		channels = {}
-		print "Checking channels on Satellite server"
+		print "Checking base channels on Satellite server"
 		for parent in SUPPORTED_CHANNELS:
 			if options.verbose: print "Checking base channel", parent
 			# Check each supported base channel, skip if it does not exist on Satellite server
@@ -530,6 +545,7 @@ def main():
 				arch = 'channel-' + channels[parent]['arch']
 			subdir = channels[parent]['subdir']
 			
+			print "  Checking child channels for %s" % parent
 			for system in systems:
 				# use system name plus parent to create a unique child channel
 				c_label = DELL_INFO['label'] + '-' + system + '-' + parent
@@ -537,7 +553,7 @@ def main():
 				c_summary = DELL_INFO['summary'] + ' on ' + systems[system] + ' running ' + parent
 				c_arch = arch
 				c_dir = options.localdir + system + '/' + subdir
-				if options.verbose: print "Checking child channel:", c_label
+				if options.verbose: print "    Checking child channel:", c_label
 				if channel_exists(key, c_label, current_channels):
 					if options.delete:
 						# Delete child channels if requested
@@ -547,6 +563,7 @@ def main():
 							delete_channel(key, c_label)
 					else:
 						if options.debug: print "DEBUG: checking for dir:", c_dir
+						if options.verbose: print "Child channel already exists:", c_label
 						if os.path.isdir(c_dir):
 							channels[parent]['child_channels'].append(system)
 				else:
@@ -565,13 +582,15 @@ def main():
 
 		if (not options.delete) and (not options.no_packages):
 			# Iterate through channels, pushing rpms from the local repo as needed
-			# TODO: check if rpm is already uploaded first
+			# TODO: check if rpm is already uploaded and orphaned or part of another channel
 			if options.debug: print "DEBUG: Channel mapping:", channels
+			print "Syncing rpms as needed"
 			for parent in channels:
+				print "  Syncing rpms for child channels in %s" % parent
 				for child in channels[parent]['child_channels']:
 					dir = options.localdir + child + '/' + channels[parent]['subdir']
 					channel = DELL_INFO['label'] + '-' + child + '-' + parent
-					print "Syncing rpms to child channel", channel
+					if options.verbose: print "    Syncing rpms to child channel", channel
 					if options.debug: print "DEBUG: Looking for rpms in", dir
 					rpms = gen_rpm_list(dir)
 					# Get all packages in child channel
@@ -603,7 +622,8 @@ def main():
 								sys.exit(1)
 			print "Completed uploading rpms."
 
-	if not options.server_actions_only:
+	if (not options.server_actions_only) and (not options.demo) and (not options.delete):
+		# This is the client actions section
 		print "Subscribing clients to the %s channel" % (PLATFORM_INDEPENDENT)
 		client_systems = subscribe_clients(key)
 		print "Scheduling GPG key and software installation on clients"
