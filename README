@@ -4,7 +4,7 @@ https://fedorahosted.org/dell-satellite-sync/
 Introduction
 ------------
 
-dell-satellite-sync is a solution for taking Dell's official Linux software repositories, and replicating them into an RHN Satellite or Spacewalk server, and subscribing any registered Dell systems to the correct child channel.
+dell-satellite-sync is a solution for taking Dell's official Linux software repositories, replicating them into an RHN Satellite or Spacewalk server, and subscribing any registered Dell systems to the correct child channel.
 
 The process is:
 
@@ -33,12 +33,13 @@ For the client-side actions to complete, the following conditions must be met on
    2. All registered systems must be subscribed to their respective rhn-tools child channel
    3. The rpm rhncfg-actions must be installed
    4. Remote actions must be allowed by running rhn-actions-control --enable-run - this can be done through an rpm and pushed to the clients, or by another means outside of Satellite/Spacewalk
-   5. If the systems have the provisioning entitlement, it is recommended that they also have the osad package installed - this will allow remote actions to be executed very quickly, rather than waiting for the system to check-in 
+   5. The 'provisioning' entitlement
+   6. It is recommended that they also have the osad package installed - this will allow remote actions to be executed very quickly, rather than waiting for the system to check-in 
 
 Usage
 -----
 
-  [vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py -h
+  [vinny@sat ~]$ dell-satellite-sync -h
   usage: dell-satellite-sync.py [options]
   This program will rsync an offline repository from linux.dell.com, then create 
   Satellite channels and populate them with the rpms, and subscribe registered
@@ -79,13 +80,20 @@ Examples
 
 Run entire process, useful options for scheduling a cron job:
 
-[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py --server satellite.example.com --user satadmin --password my_password --localdir /home/vinny/dell-repo/ --gpg-url http://satellite.example.com/pub/ --force
+[vinny@sat ~]$ dell-satellite-sync --server satellite.example.com --user satadmin --password my_password --localdir /home/vinny/dell-repo/ --gpg-url http://satellite.example.com/pub/ --force
 
 Run server-side actions only, prompt for password:
 
-[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py --server satellite.example.com --user satadmin --no-rsync --localdir /home/vinny/dell-repo/ --force --server-actions-only
+[vinny@sat ~]$ dell-satellite-sync --server satellite.example.com --user satadmin --no-rsync --localdir /home/vinny/dell-repo/ --force --server-actions-only
 
 Run client-side actions only, prompt for password, and display verbose output:
 
-[vinny@sat dell-satellite-sync]$ ./dell-satellite-sync.py  --server satellite.example.com --user satadmin --verbose --client-actions-only 
+[vinny@sat ~]$ dell-satellite-sync  --server satellite.example.com --user satadmin --verbose --client-actions-only 
 
+Known Issues
+------------
+* Currently the --force option is required when initially uploading packages from the Dell repo to the Satellite/Spacewalk server.  This is because some of the Dell rpms have the same name and version, but different checksums.  This will be corrected on the Dell repositories in the future.
+
+* When using the --delete option, the client systems will remain subscribed to the Dell child channels.  They can easily be unsubscribed in bulk using the 'System Set Manager'.  This will be implemented into dell-satellite-sync in the future.
+
+* Due to BZ # 530598 the Dell GPG keys are installed using a remote action.  This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.  In the future this step will be removed, as Satellite should automatically install the key upon initial package install.
