@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# _author = Vinny Valdez <vvaldez@redhat.com>
-# _version = 0.2
+# _author_ = Vinny Valdez <vvaldez@redhat.com>
+# _version_ = 0.2
 #
 # Copyright (c) 2009 Red Hat, Inc.
 #
@@ -15,10 +15,6 @@
 # Red Hat trademarks are not licensed under GPLv2. No permission is
 # granted to use or replicate Red Hat trademarks that are incorporated
 # in this software or its documentation. 
-
-import xmlrpclib, os, sys, signal, time, re, getpass, subprocess
-from xml.dom import minidom
-from optparse import OptionParser
 
 # Specify Satellite info here if desired, or as parameters (try -h or --help)
 SATELLITE_SERVER = ''
@@ -69,6 +65,14 @@ for version in RHEL5_i386_ALTS:
 # RHEL 5 x86_64 channels
 for version in RHEL5_x86_64_ALTS:
 	SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+
+# Import modules
+try:
+	import xmlrpclib, os, sys, signal, time, re, getpass, subprocess
+	from optparse import OptionParser
+except:
+	print "Could not import modules"
+	raise
 
 # options parsing
 usage = "usage: %prog [options]\nThis program will rsync an offline repository from linux.dell.com, then create Satellite channels and populate them with the rpms, and subscribe registered clients to the correct channels.\nUse -h or --help for additional information."
@@ -309,7 +313,7 @@ def push_rpm(rpm, channel, user, password, satserver):
 			print "rhnpush exited with returncode:", rhnpush.returncode
 		return rhnpush.returncode
 
-def subscribe(key, base_channel, new_channel, system_id):
+def subscribe(key, base_channel, new_channel, system_id, system_name):
 	'''Subscribes system_id to new_channel'''
 	# Get a list of current child channels, since subscribe removes all channels
 	channels = client.system.list_subscribed_child_channels(key, system_id)
@@ -317,23 +321,22 @@ def subscribe(key, base_channel, new_channel, system_id):
 	for channel in channels:
 		channel_labels.append(channel['label'])
 	if new_channel in channel_labels:
-		print "System already subscribed to %s." % (new_channel)
+		if options.verbose: print "%s is already subscribed to %s." % (system_name, new_channel)
 		return True
 	available_channels = client.system.list_subscribable_child_channels(key, system_id)
 	available_channel_labels = []
 	for channel in available_channels:
 		available_channel_labels.append(channel['label'])
 	if new_channel not in available_channel_labels:
-		print "Attempting to subscribe to %s, but it is not available." % (new_channel)
+		if options.verbose: print "Attemped to subscribe %s to %s, but it is not available." % (system_name, new_channel)
 		return False
-	print "Subscribing system to %s" % (new_channel)
+	if options.verbose: print "Subscribing %s to %s" % (system_name, new_channel)
 	channel_labels.append(new_channel)
 	return client.system.set_child_channels(key, system_id, channel_labels)
 
 def subscribe_clients(key):
 	'''Creates list of registered clients, and subscribes them to the platform_independent channel'''
 	systems = client.system.list_systems(key)
-	skipped = []
 	scheduled = []
 	for system in systems:
 		# Check if it is a Dell system
@@ -343,25 +346,23 @@ def subscribe_clients(key):
 			vendor = 'unknown'
 		else:
 			vendor = system_dmi['vendor']
-		if options.verbose: print "System vendor is:", vendor
 		if not ('Dell' in vendor or options.subscribe_all):
-			#TODO - write skipped systems to a logfile or print out at end.  Eventually add mechanism to retry these
-			skipped.append(system['id'])
-			print "System vendor is '%s', skipping.  Force with --all if desired." % (vendor)
+			print "%s vendor is '%s', skipping.  Force with --all if desired." % (system['name'], vendor)
 			if options.verbose: print "Removing %s from list" % (system['name'])
 			system['skip'] = True
 		else:
+			if options.verbose: print "%s vendor is: '%s'" % (system['name'], vendor)
 			system['skip'] = False
 			try:
 				base_channel = client.system.get_subscribed_base_channel(key, system['id'])['label']
 				system['base_channel'] = base_channel
-				print "%s:%i is subscribed to: %s." % (system['name'], system['id'], base_channel)
+				if options.verbose: print "%s is subscribed to base channel: %s." % (system['name'], base_channel)
 				scheduled.append(system['id'])
 				new_channel = DELL_INFO['label'] + '-' + PLATFORM_INDEPENDENT + '-' + base_channel
 				system['platform_independent'] = new_channel
-				if not subscribe(key, base_channel, new_channel, system['id']):
-					#TODO - same as above, write to skipped list instead
-					print "Error attempting to subscribe to %s." % (new_channel)
+				if not subscribe(key, base_channel, new_channel, system['id'], system['name']):
+					system['skip'] = True
+					if options.verbose: print "Error attempting to subscribe %s to %s." % (system['name'], new_channel)
 #					sys.exit(1)
 			except:
 				print "No base channel found for %s.  Please subscribe this system to a supported channel first." % (system['name'])
@@ -402,25 +403,30 @@ fi
 		# First find the package id for smbios-utils
 		smbios_packages = client.packages.search.advanced_with_channel(key, "name:smbios-utils AND description:meta-package", system['platform_independent'])
 		smbios_packages.sort()
-		if options.debug: print "DEBUG: package search results:", smbios_packages
+		if options.debug: print "DEBUG: %s package search results:" % (system['name'], smbios_packages)
 		smbios_package = smbios_packages[-1]['id']
 		# First try to schedule gpg key imports for libsmbios and dell
 		try:
 			client.system.schedule_script_run(key, system['id'], "root", "root", 14400, gpg_script, system['last_checkin'])
 		except:
-			print "Error trying to install gpg keys for %s" % system['name']
-			continue # possibly remove from list
+			print "Error trying to schedule gpg key install for %s" % system['name']
+			system['skip'] = True
+			if options.debug: raise
+			continue 
 		# Now schedule package install for smbios-utils
 		try:
 			# Find smbios-utils in newly subscribed channel, and schedule install
-			if options.verbose: print "Package id:", smbios_package
-			if options.verbose: print "Scheduling package '%s' for installation on '%s'" % ('smbios-utils', system['name'])
+			if options.verbose: print "Scheduling package install '%s' (%i) on %s" % ('smbios-utils', smbios_package, system['name']) 
+			# TODO: Need to schedule it 1 minute after 'last_checkin' to avoid race condition with gpg keys
 			result = client.system.schedule_package_install(key, system['id'], smbios_package, system['last_checkin'])
-			if options.verbose: print "Result of package scheduling:", result
+			if options.verbose: print "Result of package scheduling for %s: %i" % (system['name'], result)
 		except:
 			print "Error trying to install 'smbios-utils' package for %s" % system['name']
-			continue # possibly remove from list
+			system['skip'] = True
+			if options.debug: raise
+			continue
 		if options.verbose: print "Scheduling action on system: %s id: %i" % (system['name'], system['id'])
+		# TODO: schedule this 2 minutes after 'last_checkin'
 		system['action_id'] = client.system.schedule_script_run(key, system['id'], "root", "root", 14400, action_script, system['last_checkin'])
 		system['complete'] = False
 	return systems
@@ -441,7 +447,8 @@ def get_action_results(key, systems):
 			if not system['complete']:
 				if options.verbose: print "checking system:", system['name']
 				script_result = client.system.get_script_results(key, system['action_id'])
-				if options.verbose: print "Script result:", script_result
+				if (options.verbose) and (not script_result == []): 
+					print "Script result for %s: %s:" % (system['name'], script_result)
 				if not script_result == []:
 					if options.verbose: print "%s script result:" % (system['name'])
 					if options.debug: print script_result
@@ -450,7 +457,7 @@ def get_action_results(key, systems):
 					system['complete'] = True
 				else:
 					system['complete'] = False
-					if options.verbose: print "%s not done yet" % (system['name'])
+					if options.verbose: print "%s not completed yet." % (system['name'])
 		complete = True
 		for system in systems:
 			if system['skip']: continue
@@ -474,12 +481,35 @@ def get_action_results(key, systems):
 			system['system_id'] = False
 	for system in systems:
 		if system['skip']: continue
-		if options.verbose: print "Output for %s is: %s" % (system['name'], system['system_id'])
+		if options.verbose: print "System ID for %s is: %s" % (system['name'], system['system_id'])
 		new_channel = DELL_INFO['label'] + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
 		system['system_channel'] = new_channel
 		if options.verbose: print "Subscribing %s to channel %s" % (system['name'], system['system_channel'])
-		subscribe(key, system['base_channel'], system['system_channel'], system['id'])
+		if not subscribe(key, system['base_channel'], system['system_channel'], system['id'], system['name']):
+			system['no_child'] = True
+		else:
+			system['no_child'] = False
 	return systems
+
+def show_client_results(systems):
+	skipped = []
+	completed = []
+	no_child = []
+	for system in systems:
+		if system['skip']: 
+			skipped.append(system['name'])
+		elif system['no_child']:
+			no_child.append(system['name'])
+		elif system['complete']:
+			completed.append(system['name'])
+	if completed == []:
+		print "No systems were successfully completed."
+	else:
+		print "The following systems were completed: %s" % completed
+	if not skipped == []:
+		print "The following systems were skipped: %s" % skipped
+	if not no_child == []:
+		print "The following do not have system-specific child channels: %s" % no_child
 
 def reconstruct_name(package):
 	'''Take dictionary of package name in Satellite and reconstruct the full name'''
@@ -504,11 +534,10 @@ def main():
 		for channel in current_channels:
 			current_channel_labels.append(channel['label'])
 		if options.debug: print "DEBUG: Channels on current Satellite server:", current_channel_labels
-	
-	if client.api.get_version() < 5.1:
-		# TODO: Haven't tested with Spacewalk, not sure how it is reported
-		print "This script uses features not available with Satellite versions older than 5.1"
-		sys.exit(1)
+		if client.api.get_version() < 5.1:
+			# TODO: Haven't tested with Spacewalk, not sure how it is reported
+			print "This script uses features not available with Satellite versions older than 5.1"
+			sys.exit(1)
 	if not options.client_actions_only:
 		# This begins the server actions section
 		if not os.path.exists(options.localdir):
@@ -516,7 +545,7 @@ def main():
 				os.makedirs(options.localdir)
 			except:
 				print "Error: Unable to create %s" % (options.localdir)
-				sys.exit(1)
+				raise
 		if (not options.delete) and (not options.no_rsync):
 			# Sync local Dell repo with public Dell repo
 			returncode = get_dell_repo(DELL_REPO_URL, options.localdir)
@@ -624,12 +653,14 @@ def main():
 
 	if (not options.server_actions_only) and (not options.demo) and (not options.delete):
 		# This is the client actions section
-		print "Subscribing clients to the %s channel" % (PLATFORM_INDEPENDENT)
+		print "Subscribing registered systems to the %s channel" % (PLATFORM_INDEPENDENT)
 		client_systems = subscribe_clients(key)
-		print "Scheduling GPG key and software installation on clients"
-		schedule_actions(key, client_systems)
-		print "Waiting for actions to complete"
-		get_action_results(key, client_systems)
+		print "Scheduling software installation and actions on clients"
+		client_systems = schedule_actions(key, client_systems)
+		print "Waiting for client actions to complete"
+		client_systems = get_action_results(key, client_systems)
+		print "All actions completed.\n"
+		show_client_results(client_systems)
 
 	if not options.demo: logout(key)
 
