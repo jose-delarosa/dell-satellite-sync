@@ -1,4 +1,9 @@
-* Write failures to a logfile
-* Create config file at /etc/sysconfig/dell/dell-satellite-sync
+* Create config file at /etc/sysconfig/dell-satellite-sync
 * Unsubscribe clients from any Dell channels with --delete
-* Create rpm and sign it
+* sign rpm
+* Add check for rhnpush unless --no-packages or --client-actions-only specified
+* Test with Satellite 5.1
+* Test with Satellite 5.2
+* Test with Spacewalk (all versions)
+* Run from RHEL 4
+* Create man page
