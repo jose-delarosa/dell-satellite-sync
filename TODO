@@ -1,5 +1,4 @@
 * Create config file at /etc/sysconfig/dell-satellite-sync
-* Unsubscribe clients from any Dell channels with --delete
 * sign rpm
 * Add check for rhnpush unless --no-packages or --client-actions-only specified
 * Test with Satellite 5.1
