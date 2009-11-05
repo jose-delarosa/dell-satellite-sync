@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 0.3
+Version: 0.4
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -44,6 +44,14 @@ rm -rf %{buildroot}
 %doc README LICENSE TODO
 
 %changelog
+* Wed Nov 5 2009 Vinny Valdez <vvaldez@redhat.com> 0.4-1
+- Added options "--rhel5-only" and "--rhel4-only" to work around a bug in some of the Dell rpms that are being treated as the same in Satellite
+- Added option "--only-systems" that accepts a comma separated list of systems to rsync and create child channels for
+- Added package removal from Satellite in the channels with --delete now
+- Added --exclude-from list if --only-systems is specified
+- Added --repo to specify a specific repo to pull from
+- Added timestamps to output
+- Fixed bug with --debug mode in version 0.3
 * Tue Oct 30 2009 Vinny Valdez <vvaldez@redhat.com> 0.3-1
 - Cleaned up some output on the client side actions
 - Added "raise" statement if using debug in some cases
