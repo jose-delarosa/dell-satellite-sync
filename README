@@ -39,41 +39,50 @@ For the client-side actions to complete, the following conditions must be met on
 Usage
 -----
 
-  [vinny@sat ~]$ dell-satellite-sync -h
-  usage: dell-satellite-sync.py [options]
-  This program will rsync an offline repository from linux.dell.com, then create 
-  Satellite channels and populate them with the rpms, and subscribe registered
-  clients to the correct channels.
-  Use -h or --help for additional information.
+[vinny@vvaldez ~]$ dell-satellite-sync --help
+Usage: dell-satellite-sync [options]
+This program will rsync an offline repository from linux.dell.com, then create Satellite channels and populate them with the rpms, and subscribe registered clients to the correct channels.
+Use -h or --help for additional information.
+
+Options:
+  -h, --help            show this help message and exit
+  -u USER, --user=USER  Satellite username
+  -p PASSWORD, --password=PASSWORD
+                        Satellite password (will be promoted if omitted)
+  -s SATSERVER, --server=SATSERVER
+                        FQDN of your Satellite server
+  -l LOCALDIR, --localdir=LOCALDIR
+                        Local dir to hold Dell repo
+  -d, --delete          Delete existing Dell channels and packages
+  -f, --force           Force package upload (required for version 0.4)
+  -a, --all             Subscribe all systems, whether Dell vendor or not.
+  -g GPG_URL, --gpg-url=GPG_URL
+                        URL where the GPG keys are located (should be
+                        accessible by clients.
+                        e.g. http://satserver.example.com/pub/).
+  --no-rsync            Skip rsync (local repo must already be present)
+  -r REPO, --repository=REPO
+                        Repository to sync from, defaults to latest
+                        e.g. 'linux.dell.com/repo/hardware/OMSA_6.1'
+  -o ONLY_SYSTEMS, --only-systems=ONLY_SYSTEMS
+                        Only create child channels for these systems.
+                        e.g. -o per900,pe1800,pet610
+  --no-packages         Skip uploading packages
+  -S, --server-actions-only
+                        Only create channels and upload rpms, skip client
+                        subscription
+  -C, --client-actions-only
+                        Only subscribe clients (channels and rpms must already
+                        be on server)
+  -c, --client-mode     Runs client actions only from a client (feature not
+                        implemented yet))
+  -5, --rhel5-only      Only work with RHEL 5 base channels (choose one for 0.4)
+  -4, --rhel4-only      Only work with RHEL 4 base channels
+  -D, --demo            Enable demo mode (simulation only, does not connect to
+                        a Satellite server)
+  -v, --verbose         Enable verbose output
+  --debug               Enable lots of debug output (more than verbose)
   
-  options:
-    -h, --help            show this help message and exit
-    -u USER, --user=USER  Satellite username
-    -p PASSWORD, --password=PASSWORD
-                          Satellite password (will be promoted if omitted)
-    -s SATSERVER, --server=SATSERVER
-                          FQDN of your Satellite server
-    -l LOCALDIR, --localdir=LOCALDIR
-                          local dir to hold Dell repo
-    -d, --delete          delete existing Dell channels and packages
-    -f, --force           force package upload
-    -a, --all             subscribe all systems, whether Dell vendor or not.
-    -g GPG_URL, --gpg-url=GPG_URL
-                          URL where the GPG keys are located (should be
-                          accessible by clients.  e.g.
-                          http://satserver.example.com/pub/).
-    --no-rsync            skip rsync (local repo must already be present)
-    --no-packages         skip uploading packages
-    -S, --server-actions-only
-                          only create channels and upload rpms, skip client
-                          subscription
-    -C, --client-actions-only
-                          only subscribe clients (channels and rpms must already
-                          be on server)
-    -D, --demo            enable demo mode (simulation only, does not connect to
-                          a Satellite server)
-    -v, --verbose         enable verbose output
-    --debug               enable lots of debug output (more than verbose)
 
 Examples
 --------
@@ -93,7 +102,5 @@ Run client-side actions only, prompt for password, and display verbose output:
 Known Issues
 ------------
 * Currently the --force option is required when initially uploading packages from the Dell repo to the Satellite/Spacewalk server.  This is because some of the Dell rpms have the same name and version, but different checksums.  This will be corrected on the Dell repositories in the future.
-
-* When using the --delete option, the client systems will remain subscribed to the Dell child channels.  They can easily be unsubscribed in bulk using the 'System Set Manager'.  This will be implemented into dell-satellite-sync in the future.
 
 * Due to BZ # 530598 the Dell GPG keys are installed using a remote action.  This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.  In the future this step will be removed, as Satellite should automatically install the key upon initial package install.
