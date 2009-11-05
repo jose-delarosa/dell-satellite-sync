@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # _author_ = Vinny Valdez <vvaldez@redhat.com>
-# _version_ = 0.2
+# _version_ = 0.4
 #
 # Copyright (c) 2009 Red Hat, Inc.
 #
@@ -21,28 +21,35 @@ SATELLITE_SERVER = ''
 SATELLITE_USER = ''
 SATELLITE_PASSWORD = ''
 LOCAL_REPO = ''
+ONLY_SYSTEMS = []
 
 # Dell specific information
+# Remove this when moving to a config file to contain it, just hacked in for now
+DELL_SYSTEM_NAMES = [
+	{ 'name' : 'pv100', 'id' : '0x023e' },
+	{ 'name' : 'nx3000', 'id' : '0x0290' },
+	{ 'name' : 'dl2000', 'id' : '0x0295' },
+]
+
 # Change this to a specific version as needed
 DELL_REPO_URL = 'linux.dell.com/repo/hardware/latest/'	# Defaults to latest, change to remain at a certain version
-GPG_URL='http://%s/' % DELL_REPO_URL			# Defaults to public keys
+GPG_URL='http://%s/' % DELL_REPO_URL
 SYSTEM_VENDOR_ID = 'system.ven_0x1028'
 PLATFORM_INDEPENDENT = 'platform_independent'		# Subdir of repo that contains platform agnostic rpms
 DELL_INFO = { 
-		# Careful with the label and name values, they are appended to system ids + base_channel names, and cannot exeed 64 characters
-		'label' : 'dell-om',
-		'name' : 'Dell OM',
-		'summary' : 'Dell OpenManage Software' 
+	# Careful with the label and name values, they are appended to system ids + base_channel names, and cannot exeed 64 characters
+	'label' : 'dell-om',
+	'name' : 'Dell OM',
+	'summary' : 'Dell OpenManage Software' 
 }
 
 # To add a new supported version, add it to the dictionary below.  
 SUPPORTED_CHANNELS = {
-#		'other_existing_base_channel' : { 'arch' : 'arch_type', 'subdir' : 'subdir within Dell repo' },
-		'rhel-i386-as-4' :  { 'arch' : 'i386' , 'subdir' : 'rh40' },
-		'rhel-x86_64-as-4' :  { 'arch' : 'x86_64' , 'subdir' : 'rh40_64' },
-		'rhel-i386-server-5' :  { 'arch' : 'i386' , 'subdir' : 'rh50' },
-		'rhel-x86_64-server-5' :  { 'arch' : 'x86_64' , 'subdir' : 'rh50_64' },
-
+#	'other_existing_base_channel' : { 'arch' : 'arch_type', 'subdir' : 'subdir within Dell repo' },
+	'rhel-i386-as-4' :  { 'arch' : 'i386' , 'subdir' : 'rh40' },
+	'rhel-x86_64-as-4' :  { 'arch' : 'x86_64' , 'subdir' : 'rh40_64' },
+	'rhel-i386-server-5' :  { 'arch' : 'i386' , 'subdir' : 'rh50' },
+	'rhel-x86_64-server-5' :  { 'arch' : 'x86_64' , 'subdir' : 'rh50_64' },
 }
 
 # Add channels that share arch and Dell repo subdir to the respective list
@@ -52,26 +59,13 @@ RHEL5_i386_ALTS = ['rhel-i386-server-5.0.z','rhel-i386-server-5.1.z','rhel-i386-
 RHEL5_x86_64_ALTS = ['rhel-x86_64-server-5.0.z','rhel-x86_64-server-5.1.z','rhel-x86_64-server-5.2.z','rhel-x86_64-server-5.3.ll','rhel-x86_64-server-5.3.z','rhel-x86_64-server-5.4.z']
 
 ###################################################################################
-# Clone details on base channels
-# RHEL 4 i386 channels
-for version in RHEL4_i386_ALTS:
-	SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-as-4']
-# RHEL 4 x86_64 channels
-for version in RHEL4_x86_64_ALTS:
-	SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-as-4']
-# RHEL 5 i386 channels
-for version in RHEL5_i386_ALTS:
-	SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-5']
-# RHEL 5 x86_64 channels
-for version in RHEL5_x86_64_ALTS:
-	SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-5']
 
 # Import modules
 try:
-	import xmlrpclib, os, sys, signal, time, re, getpass, subprocess
+	import xmlrpclib, os, sys, signal, time, re, getpass, subprocess, random
 	from optparse import OptionParser
 except:
-	print "Could not import modules"
+	print timestamp(), "! Could not import modules"
 	raise
 
 # options parsing
@@ -80,43 +74,98 @@ parser = OptionParser(usage=usage, description="")
 parser.add_option("-u", "--user", dest="user", help="Satellite username", default=SATELLITE_USER)
 parser.add_option("-p", "--password", dest="password", help="Satellite password (will be promoted if omitted)", default=SATELLITE_PASSWORD)
 parser.add_option("-s", "--server", dest="satserver", help="FQDN of your Satellite server", default=SATELLITE_SERVER)
-parser.add_option("-l", "--localdir", dest="localdir", help="local dir to hold Dell repo", default=LOCAL_REPO)
-parser.add_option("-d", "--delete", action="store_true", dest="delete", help="delete existing Dell channels and packages", default=False)
-parser.add_option("-f", "--force", action="store_true", dest="force", help="force package upload)", default=False)
-parser.add_option("-a", "--all", action="store_true", dest="subscribe_all", help="subscribe all systems, whether Dell vendor or not.", default=False)
+parser.add_option("-l", "--localdir", dest="localdir", help="Local dir to hold Dell repo", default=LOCAL_REPO)
+parser.add_option("-d", "--delete", action="store_true", dest="delete", help="Delete existing Dell channels and packages", default=False)
+parser.add_option("-f", "--force", action="store_true", dest="force", help="Force package upload)", default=False)
+parser.add_option("-a", "--all", action="store_true", dest="subscribe_all", help="Subscribe all systems, whether Dell vendor or not.", default=False)
 parser.add_option("-g", "--gpg-url", dest="gpg_url", help="URL where the GPG keys are located (should be accessible by clients.  e.g. http://satserver.example.com/pub/).", default=GPG_URL)
-parser.add_option("--no-rsync", action="store_true", dest="no_rsync", help="skip rsync (local repo must already be present)", default=False)
-parser.add_option("--no-packages", action="store_true", dest="no_packages", help="skip uploading packages", default=False)
-parser.add_option("-S", "--server-actions-only", action="store_true", dest="server_actions_only", help="only create channels and upload rpms, skip client subscription", default=False)
-parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="only subscribe clients (channels and rpms must already be on server)", default=False)
-parser.add_option("-D", "--demo", action="store_true", dest="demo", help="enable demo mode (simulation only, does not connect to a Satellite server)", default=False)
-parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="enable verbose output", default=False)
-parser.add_option("--debug", action="store_true", dest="debug", default=False, help="enable lots of debug output (more than verbose)")
+parser.add_option("--no-rsync", action="store_true", dest="no_rsync", help="Skip rsync (local repo must already be present)", default=False)
+parser.add_option("-r", "--repo", dest="repo", help="Repository to sync from, defaults to latest e.g. 'linux.dell.com/repo/hardware/OMSA_6.1'", default=DELL_REPO_URL)
+parser.add_option("-o", "--only-systems", dest="only_systems", help="Only create child channels for these systems.  e.g. -o per900,pe1800,pet610", default=ONLY_SYSTEMS)
+parser.add_option("--no-packages", action="store_true", dest="no_packages", help="Skip uploading packages", default=False)
+parser.add_option("-S", "--server-actions-only", action="store_true", dest="server_actions_only", help="Only create channels and upload rpms, skip client subscription", default=False)
+parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="Only subscribe clients (channels and rpms must already be on server)", default=False)
+parser.add_option("-c", "--client-mode", action="store_true", dest="client_mode", help="Runs client actions only from a client (feature not implemented yet))", default=False)
+parser.add_option("-5", "--rhel5-only", action="store_true", dest="rhel5_only", help="Only work with RHEL 5 base channels", default=False)
+parser.add_option("-4", "--rhel4-only", action="store_true", dest="rhel4_only", help="Only work with RHEL 4 base channels", default=False)
+parser.add_option("-D", "--demo", action="store_true", dest="demo", help="Enable demo mode (simulation only, does not connect to a Satellite server)", default=False)
+parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="Enable verbose output", default=False)
+parser.add_option("--debug", action="store_true", dest="debug", default=False, help="Enable lots of debug output (more than verbose)")
 
 (options, terms) = parser.parse_args()
 
+def timestamp():
+    lt = time.localtime(time.time())
+    return "%02d.%02d.%04d %02d:%02d:%02d:" % (lt[2], lt[1], lt[0], lt[3], lt[4], lt[5])
+
+# Perform some setup tasks
+options.repo = options.repo.split('http://')[-1]	# Strip any http:// prefixes
+GPG_URL='http://%s/' % options.repo
 error = False
+if not (options.delete or (options.rhel5_only or options.rhel4_only)):
+	print timestamp(), "! Error: 'Must specify either '--rhel5-only' or '--rhel4-only' for version 0.4 ore earlier."
+	error = True
 if options.server_actions_only and options.client_actions_only:
-	print "Error: '--server-actions-only' and '--client-actions-only' are mutually exclusive"
+	print timestamp(), "! Error: '--server-actions-only' and '--client-actions-only' are mutually exclusive"
+	error = True
+if options.rhel5_only and options.rhel4_only:
+	print timestamp(), "! Error: '--rhel5-only' and '--rhel4-only' are mutually exclusive"
 	error = True
 if options.client_actions_only and options.delete:
-	print "Error: currently deleting channels from clients is not supported"
+	print timestamp(), "! Error: currently deleting channels from clients is not supported"
 	error = True
 if options.user == '':
-	print "Error: --user must be specified"
+	print timestamp(), "! Error: --user must be specified"
 	error = True
 if options.satserver == '':
-	print "Error: --server must be specified"
+	print timestamp(), "! Error: --server must be specified"
 	error = True
 if (options.localdir == '') and (not options.client_actions_only):
-	print "Error: --localdir must specify a dir with write permissions"
+	print timestamp(), "! Error: --localdir must specify a dir with write permissions"
 	error = True
+if not options.only_systems == []:
+	only_systems = []
+	for system in options.only_systems.split(','):
+		if not system == '':
+			only_systems.append(system.lower())
+	if options.verbose:
+		for system in only_systems:
+			print timestamp(), "+ Processing:", system
+else:
+	only_systems = []
 if error:
 	print usage
 	sys.exit(1)
 else:
 	if options.password == '':
 		options.password = getpass.getpass()
+print timestamp(), "Using repository: '%s'" % options.repo
+print timestamp(), "Getting GPG keys from: '%s'" % GPG_URL
+
+# Clone details on base channels - moved here to make choices based on options
+# RHEL 4 i386 channels
+if options.rhel5_only:
+		# Remove base channels that are not RHEL 5 here
+		del SUPPORTED_CHANNELS['rhel-i386-as-4']
+		del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+	
+else:
+	for version in RHEL4_i386_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-as-4']
+	# RHEL 4 x86_64 channels
+	for version in RHEL4_x86_64_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+if options.rhel4_only:
+		# Remove base channels that are not RHEL 4 here
+		del SUPPORTED_CHANNELS['rhel-i386-server-5']
+		del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+else:
+	# RHEL 5 i386 channels
+	for version in RHEL5_i386_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-5']
+	# RHEL 5 x86_64 channels
+	for version in RHEL5_x86_64_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-5']
 
 sat_url = "http://%s/rpc/api" % options.satserver
 if options.debug:
@@ -135,9 +184,25 @@ def get_size(dir):
 			print errors
 	return output.split()[0]
 	
-def rsync(url, localdir):
+def rsync(url, localdir, only_systems):
 	'''Calls rsync, displays spinning line for progress, and updates dir size'''
 	# TODO: Enable output for verbose - Currently process hangs, possibly due to too much output
+
+	rsync_options = '-azH'
+	rsync_exclude_from = '-q'
+	file_name = ''
+	if options.verbose:
+		rsync_verbose = '--stats'
+	else:
+		rsync_verbose = '-q'
+	if not only_systems == []:
+		file_name = '/tmp/dell-satellite-sync-%s.excludes' % str(random.randint(1000,9999))
+		file = open (file_name, 'w')
+		for system in only_systems:
+			file.write('+ %s/\n' % system)
+		file.write('- pe*/\n')
+		file.close()
+		rsync_exclude_from = '--exclude-from=%s' % file_name
 	if options.debug:
 		tick = 0
 	else:
@@ -147,22 +212,22 @@ def rsync(url, localdir):
 	try:
 		if options.demo:
 			size = 0
-			print "Simulating rsync process (pid 9999):         ",
+			rsync_pid = random.randint(1000, 9999)
+			print timestamp(), "Simulating rsync: pid: %i\b size: %5s" % (rsync_pid, size),
 			for iters in range(0, 2):
 				for bar_char in progress_bars:
-					print "\b\b\b\b\b\b\b\b\b\b %4i%s    " % (size, "MB"),
-					print "\b\b\b\b\b", progress_bars[progress_bars.index(bar_char)],
+					print "\r", timestamp(), "Simulating rsync: pid: %i\b size: %5sM %s" % (rsync_pid, size, bar_char),
 					sys.stdout.flush()
 					time.sleep(tick)
 					size += 50 
 		else:
 			size = get_size(localdir)
-			rsync = subprocess.Popen(["rsync", "-azqH", "rsync://"+url, localdir], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			print "Waiting for rsync process to finish (pid ", rsync.pid,"\b):           ",
+			if options.verbose: print timestamp(), "+ Running: rsync %s %s %s rsync://%s %s" % (rsync_options, rsync_verbose, rsync_exclude_from, url, localdir)
+			rsync = subprocess.Popen(['rsync', rsync_options, rsync_verbose, rsync_exclude_from, 'rsync://%s' % url, localdir], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			print timestamp(), "Waiting for rsync: pid:", rsync.pid,"\b size:",
 			bar_char = 0
 			while rsync.poll() is None:
-				print "\b\b\b\b\b\b\b\b\b %5s    " % (size),
-				print "\b\b\b\b\b", progress_bars[bar_char],
+				print "\r", timestamp(), "Waiting for rsync: pid: %i\b size: %5s %s" % (rsync.pid, size, progress_bars[bar_char]),
 				if bar_char == num_bars:
 					bar_char = 0
 				else:
@@ -172,23 +237,29 @@ def rsync(url, localdir):
 				size = get_size(localdir)
 		print "\n"
 	except KeyboardInterrupt:
-		print "Interrupt detected, cleaning up."
+		if not file_name == '':
+			os.remove(file_name)
+		print timestamp(), "! Interrupt detected, cleaning up."
 		output, errors = rsync.communicate()
-		print "stderr on rsync process:", errors
+		print output
+		print timestamp(), "! stderr on rsync process:", errors
 		os.kill(rsync.pid, signal.SIGKILL)
 		sys.exit(1)
+	if not file_name == '':
+		os.remove(file_name)
 	if options.demo:
 		sys.exit(1)
 		return 0
 	else:
 		output, errors = rsync.communicate()
+		if options.verbose: print output
 		if not errors == '':
-			print "stderr on rsync process:\n", errors
+			print timestamp(), "! stderr on rsync process:\n", errors
 		return rsync.returncode
 
-def get_dell_repo(repo, localdir):
+def get_dell_repo(repo, localdir, only_systems):
 	'''Calls the rsync function to obtain a local copy of Dell's repos'''
-	return rsync(repo, localdir)
+	return rsync(repo, localdir, only_systems)
 
 def login(user, password):
 	'''Login to the Satellite server'''
@@ -203,9 +274,9 @@ def channel_exists(key, channel, channels):
 	if options.demo: return False
 	for curchan in channels:
 		if channel == curchan['label']:
-			if options.debug: print "DEBUG: Match found for %s and %s" % (channel, curchan['label'])
+			if options.debug: print timestamp(), "DEBUG: Match found for %s and %s" % (channel, curchan['label'])
 			return True
-	if options.debug: print "DEBUG: No match found for", channel
+	if options.debug: print timestamp(), "DEBUG: No match found for", channel
 	return False
 
 def create_channel(key, label, name, summary, arch, parent):
@@ -215,47 +286,88 @@ def create_channel(key, label, name, summary, arch, parent):
 	else:
 		channel_map = { 'name' : name, 'label' : label, 'summary' : summary, 'parent_label' : parent, 'gpg_url' : options.gpg_url + 'RPM-GPG-KEY-dell' }
 	try:
-		if options.verbose: print "Creating temporary channel:", label + '-tmp'
-		if options.debug: print "Running: client.channel.software.create(", key, label + '-tmp', name + '-tmp', summary, arch, parent, ")"
+		if options.verbose: print timestamp(), "+ Creating temporary channel:", label + '-tmp'
+		if options.debug: print timestamp(), "DEBUG: Running: client.channel.software.create(", key, label + '-tmp', name + '-tmp', summary, arch, parent, ")"
 		client.channel.software.create(key, label + '-tmp', name + '-tmp', summary, arch, parent)
 	except:
-		print "Error creating temporary channel:", label + '-tmp'
+		print timestamp(), "! Error creating temporary channel:", label + '-tmp'
 		raise
 	try:
-		if options.verbose: print "Cloning temporary channel into real channel:", label
-		if options.debug: print "Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
+		if options.verbose: print timestamp(), "+ Cloning temporary channel into real channel:", label
+		if options.debug: print timestamp(), "+  Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
 		client.channel.software.clone(key, label + '-tmp', channel_map, True)
 	except:
-		print "Error cloning channel:", label
+		print timestamp(), "! Error cloning channel:", label
 		raise
 	try:
-		if options.verbose: print "Deleting temporary channel:", label + '-tmp'
-		if options.debug: print "Running: client.channel.software.delete(", key, label + '-tmp', ")"
+		if options.verbose: print timestamp(), "+ Deleting temporary channel:", label + '-tmp'
+		if options.debug: print timestamp(), "+ Running: client.channel.software.delete(", key, label + '-tmp', ")"
 		client.channel.software.delete(key, label + '-tmp')
 	except:
-		print "Error deleting channel:", label + '-tmp'
+		print timestamp(), "! Error deleting channel:", label + '-tmp'
 		raise
 
 def delete_channel(key, label):
-	'''Deletes a channel on the Satellite server'''
-	if options.verbose: print "Deleting channel:", label
+	'''Deletes a channel on the Satellite server and removes rpms unless --no-packages is specified'''
+	if not options.no_packages:
+		packages_to_remove = []
+		packages = client.channel.software.list_all_packages(key, label)
+		if options.debug: print timestamp(), "DEBUG: All packages for %s: %s" % (label, packages)
+		for package in packages:
+			if options.verbose: print timestamp(), "+ Removing package: %s:%i from %s" % (package['name'], package['id'], label)
+			if options.debug: print timestamp(), "DEBUG: package petails:", client.packages.get_details(key, package['id'])
+			packages_to_remove.append(int(package['id']))
+		if not client.channel.software.remove_packages(key, label, packages_to_remove):
+			if options.verbose: print timestamp(), "Warning: Unable to delete the following packages:", pacakges_to_remove
+	if options.verbose: print timestamp(), "+ Deleting channel:", label
 	return client.channel.software.delete(key, label)
 
-def build_channel_list(localdir, vendor_id):
+def build_channel_list(localdir, vendor_id, only_systems, dell_systems):
 	'''Creates a mapping of dirs to their symlink target to use as channel labels/names'''
 	dir_list = os.listdir(localdir)
 	systems = {}
+	if options.verbose: print timestamp(), "Checking for matches with: %s" % only_systems
 	for dir in dir_list:
-		# Only process directories matching vendor systems
-		if vendor_id in dir:
-			if os.path.islink(localdir + dir):
-				name = os.readlink(localdir + dir)
-				if options.debug: print "DEBUG: Using dir link, dir = %s target = %s" % (dir,name)
+		if options.debug: print timestamp(), "DEBUG: Checking if %s is in %s" % (vendor_id, dir)
+		if not vendor_id in dir: 	# Only process directories matching vendor systems
+			continue
+		if os.path.islink(localdir + dir):
+			name = os.readlink(localdir + dir)
+			if not only_systems == []:
+				if not (name.lower() in only_systems or dir.lower() in only_systems):	# Only proces dirs in only_systems list
+					if options.verbose: print timestamp(), "- %s was not requested, skipping." % name
+					continue
+			if options.verbose: print timestamp(), "+ Adding %s to channel list." % name
+			if options.debug: print timestamp(), "DEBUG: Using dir link, dir = %s target = %s" % (dir,name)
+		else:
+			# This means it doesn't have a friendly name
+			proposed_name = dir.split('.')[-1].split('_')[-1]
+			if not only_systems == []:
+				if options.debug: print timestamp(), "Proposed name %s of dir: %s:" % (proposed_name, dir)
+				for dell_system in dell_systems:
+					if options.debug: print timestamp(), "DEBUG: Testing %s/%s and %s checking in %s" % (dell_system['id'], dell_system['name'], proposed_name, only_systems)
+					if dell_system['id'] == proposed_name:
+						if (dell_system['name'] in only_systems) or (SYSTEM_VENDOR_ID + ".dev_" + proposed_name in only_systems):
+							if options.verbose: print timestamp(), "+ Adding %s to channel list." % dell_system['name']
+							name = dell_system['name']
+							break
+				else:
+					if not (proposed_name.lower() in only_systems or dir.lower() in only_systems):	# Only proces dirs in only_systems list
+						if options.verbose: print timestamp(), "- %s was not requested, skipping." % dir
+						continue
 			else:
-				name = dir.split('.')[-1]
-				if options.debug: print "DEBUG: Dir is not a link, using part of dir name: %s name = %s" % (dir, name)
-			systems[dir] = name
-	if options.debug: print "DEBUG: Systems mapping:", systems
+				# No specific systems requested, check them all
+				for dell_system in dell_systems:
+					if options.debug: print timestamp(), "DEBUG: Testing %s/%s and %s" % (dell_system['id'], dell_system['name'], proposed_name)
+					if dell_system['id'] == proposed_name:
+						name = dell_system['name']
+						break
+				else:
+					name = proposed_name
+			if options.debug: print timestamp(), "DEBUG: Dir is not a link, using part of dir name: %s name = %s" % (dir, name)
+		systems[dir] = name
+	if options.verbose or options.debug: 
+		print timestamp(), "Info: Working wth channel list: %s" % systems
 	return systems
 
 def gen_rpm_list(path):
@@ -267,10 +379,10 @@ def gen_rpm_list(path):
 			for name in files:
 				if re.search('\.rpm$', name):
 					rpms.append(os.path.join(root,name))
-					if options.debug: print "DEBUG: + adding rpm:", name
+					if options.debug: print timestamp(), "DEBUG: + adding rpm:", name
 				else:
-					if options.debug: print "DEBUG: - not an rpm:", name
-	if options.debug: print "DEBUG: returning list of rpms:", rpms
+					if options.debug: print timestamp(), "DEBUG: - not an rpm:", name
+	if options.debug: print timestamp(), "DEBUG: returning list of rpms:", rpms
 	return rpms
 
 def push_rpm(rpm, channel, user, password, satserver):
@@ -292,14 +404,14 @@ def push_rpm(rpm, channel, user, password, satserver):
 		force_flag = ''
 	# call rhnpush subprocess
 	try:
-		if options.verbose: print "Calling rhnpush to upload %s into %s:" % (rpm.split('/')[-1], channel)
+		if options.verbose: print timestamp(), "Calling rhnpush to upload %s into %s:" % (rpm.split('/')[-1], channel)
 		if not options.demo:
 			rhnpush = subprocess.Popen(['rhnpush', source_flag, '--channel', channel, '--username', options.user, '--password', password, '--server', 'http://' + satserver + '/APP', rpm, verbose_flag, force_flag ], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			rhnpush.wait()
 	except KeyboardInterrupt:
-		print "Interrupt detected, cleaning up."
+		print timestamp(), "! Interrupt detected, cleaning up."
 		output, errors = rhnpush.communicate()
-		print "stderr on rhnpush process:", errors
+		print timestamp(), "! stderr on rhnpush process:", errors
 		os.kill(rhnpush.pid, signal.SIGKILL)
 		sys.exit(1)
 	if options.demo: 
@@ -309,8 +421,8 @@ def push_rpm(rpm, channel, user, password, satserver):
 		if (options.verbose) or (not rhnpush.returncode == 0): 
 			print output
 			if not errors == '':
-				print "stderr on rhnpush process:\n", errors
-			print "rhnpush exited with returncode:", rhnpush.returncode
+				print timestamp(), "! stderr on rhnpush process:\n", errors
+			print timestamp(), "Info: rhnpush exited with returncode:", rhnpush.returncode
 		return rhnpush.returncode
 
 def subscribe(key, base_channel, new_channel, system_id, system_name):
@@ -321,16 +433,16 @@ def subscribe(key, base_channel, new_channel, system_id, system_name):
 	for channel in channels:
 		channel_labels.append(channel['label'])
 	if new_channel in channel_labels:
-		if options.verbose: print "%s is already subscribed to %s." % (system_name, new_channel)
+		if options.verbose: print timestamp(), "%s is already subscribed to %s." % (system_name, new_channel)
 		return True
 	available_channels = client.system.list_subscribable_child_channels(key, system_id)
 	available_channel_labels = []
 	for channel in available_channels:
 		available_channel_labels.append(channel['label'])
 	if new_channel not in available_channel_labels:
-		if options.verbose: print "Attemped to subscribe %s to %s, but it is not available." % (system_name, new_channel)
+		if options.verbose: print timestamp(), "Warning: Attemped to subscribe %s to %s, but it is not available." % (system_name, new_channel)
 		return False
-	if options.verbose: print "Subscribing %s to %s" % (system_name, new_channel)
+	if options.verbose: print timestamp(), "+ Subscribing %s to %s" % (system_name, new_channel)
 	channel_labels.append(new_channel)
 	return client.system.set_child_channels(key, system_id, channel_labels)
 
@@ -340,32 +452,32 @@ def subscribe_clients(key):
 	scheduled = []
 	for system in systems:
 		# Check if it is a Dell system
-		if options.verbose: print "Checking system %s with id: %i" % (system['name'], system['id'])
+		if options.verbose: print timestamp(), "Checking system %s with id: %i" % (system['name'], system['id'])
 		system_dmi = client.system.get_dmi(key, system['id'])
 		if system_dmi == '':
 			vendor = 'unknown'
 		else:
 			vendor = system_dmi['vendor']
 		if not ('Dell' in vendor or options.subscribe_all):
-			print "%s vendor is '%s', skipping.  Force with --all if desired." % (system['name'], vendor)
-			if options.verbose: print "Removing %s from list" % (system['name'])
+			print timestamp(), "Warning: %s vendor is '%s', skipping.  Force with --all if desired." % (system['name'], vendor)
+			if options.verbose: print timestamp(), "- Removing %s from list" % (system['name'])
 			system['skip'] = True
 		else:
-			if options.verbose: print "%s vendor is: '%s'" % (system['name'], vendor)
+			if options.verbose: print timestamp(), "Info: %s vendor is: '%s'" % (system['name'], vendor)
 			system['skip'] = False
 			try:
 				base_channel = client.system.get_subscribed_base_channel(key, system['id'])['label']
 				system['base_channel'] = base_channel
-				if options.verbose: print "%s is subscribed to base channel: %s." % (system['name'], base_channel)
+				if options.verbose: print timestamp(), "Info: %s is subscribed to base channel: %s." % (system['name'], base_channel)
 				scheduled.append(system['id'])
 				new_channel = DELL_INFO['label'] + '-' + PLATFORM_INDEPENDENT + '-' + base_channel
 				system['platform_independent'] = new_channel
 				if not subscribe(key, base_channel, new_channel, system['id'], system['name']):
 					system['skip'] = True
-					if options.verbose: print "Error attempting to subscribe %s to %s." % (system['name'], new_channel)
+					if options.verbose: print timestamp(), "! Error attempting to subscribe %s to %s." % (system['name'], new_channel)
 #					sys.exit(1)
 			except:
-				print "No base channel found for %s.  Please subscribe this system to a supported channel first." % (system['name'])
+				print timestamp(), "! No base channel found for %s.  Please subscribe this system to a supported channel first." % (system['name'])
 				raise
 	return systems
 
@@ -401,31 +513,52 @@ fi
 	for system in systems:
 		if system['skip']: continue
 		# First find the package id for smbios-utils
-		smbios_packages = client.packages.search.advanced_with_channel(key, "name:smbios-utils AND description:meta-package", system['platform_independent'])
-		smbios_packages.sort()
-		if options.debug: print "DEBUG: %s package search results:" % (system['name'], smbios_packages)
-		smbios_package = smbios_packages[-1]['id']
+		package_found = False
+		package_search_tries = 0
+		while not package_found: 	# Added retry while looking for smbios-utils.  If it happens too fast it won't be synced yet.
+#			smbios_packages = client.packages.search.advanced_with_channel(key, "name:smbios-utils AND description:meta-package", system['platform_independent'])
+			smbios_packages = []
+			packages = client.channel.software.list_all_packages(key, system['platform_independent'])
+			for package in packages:
+				if package['name'] == 'smbios-utils':
+					smbios_packages.append(package['id'])
+					if options.verbose: 
+						print timestamp(), "+ Package %s:%i found for %s in channel %s." % (package['name'], package['id'], system['name'], system['platform_independent'])
+			smbios_packages.sort()
+			if smbios_packages == []:
+				if package_search_tries > 5:
+					print timestamp(), "! Fatal Error: Could not find 'smbios-utils' uploaded on the server."
+					sys.exit(1)
+				if options.verbose:
+					print timestamp(), "Info: Package 'smbios-utils' not found, waiting for server sync."
+				package_search_tries += 1
+				time.sleep(5)
+				continue
+			else:
+				package_found = True
+			if options.debug: print timestamp(), "DEBUG: %s package search results: %s" % (system['name'], smbios_packages)
+		smbios_package = smbios_packages[-1]
 		# First try to schedule gpg key imports for libsmbios and dell
 		try:
 			client.system.schedule_script_run(key, system['id'], "root", "root", 14400, gpg_script, system['last_checkin'])
 		except:
-			print "Error trying to schedule gpg key install for %s" % system['name']
+			print timestamp(), "! Error trying to schedule gpg key install for %s" % system['name']
 			system['skip'] = True
 			if options.debug: raise
 			continue 
 		# Now schedule package install for smbios-utils
 		try:
 			# Find smbios-utils in newly subscribed channel, and schedule install
-			if options.verbose: print "Scheduling package install '%s' (%i) on %s" % ('smbios-utils', smbios_package, system['name']) 
+			if options.verbose: print timestamp(), "+ Scheduling package install '%s' (%i) on %s" % ('smbios-utils', smbios_package, system['name']) 
 			# TODO: Need to schedule it 1 minute after 'last_checkin' to avoid race condition with gpg keys
 			result = client.system.schedule_package_install(key, system['id'], smbios_package, system['last_checkin'])
-			if options.verbose: print "Result of package scheduling for %s: %i" % (system['name'], result)
+			if options.verbose: print timestamp(), "Info: Result of package scheduling for %s: %i" % (system['name'], result)
 		except:
-			print "Error trying to install 'smbios-utils' package for %s" % system['name']
+			print timestamp(), "! Error trying to install 'smbios-utils' package for %s" % system['name']
 			system['skip'] = True
 			if options.debug: raise
 			continue
-		if options.verbose: print "Scheduling action on system: %s id: %i" % (system['name'], system['id'])
+		if options.verbose: print timestamp(), "+ Scheduling action on system: %s id: %i" % (system['name'], system['id'])
 		# TODO: schedule this 2 minutes after 'last_checkin'
 		system['action_id'] = client.system.schedule_script_run(key, system['id'], "root", "root", 14400, action_script, system['last_checkin'])
 		system['complete'] = False
@@ -433,58 +566,76 @@ fi
 
 def get_action_results(key, systems):
 	'''Gets action results that have been scheduled'''
-	if options.debug:
-		wait = 5
-	elif options.verbose:
-		wait = 15
-	else:
-		wait = 30
 	complete = False
+	waits = 0
+	print timestamp(), "           waiting for results           ",
 
 	while not complete:
 		for system in systems:
 			if system['skip']: continue
 			if not system['complete']:
-				if options.verbose: print "checking system:", system['name']
+				if options.debug: print timestamp(), "DEBUG: Checking system:", system['name']
 				script_result = client.system.get_script_results(key, system['action_id'])
-				if (options.verbose) and (not script_result == []): 
-					print "Script result for %s: %s:" % (system['name'], script_result)
+				if (options.debug) and (not script_result == []): 
+					print timestamp(), "DEBUG: Script result for %s: %s:" % (system['name'], script_result)
 				if not script_result == []:
-					if options.verbose: print "%s script result:" % (system['name'])
-					if options.debug: print script_result
+					if options.debug:
+						print timestamp(), "DEBUG: Script result: %s" % script_result
 					system['output'] = script_result[0]['output']
 					system['return_code'] = script_result[0]['returnCode']
 					system['complete'] = True
 				else:
 					system['complete'] = False
-					if options.verbose: print "%s not completed yet." % (system['name'])
+					if options.debug: print timestamp(), "DEBUG: %s not completed yet." % (system['name'])
 		complete = True
 		for system in systems:
 			if system['skip']: continue
 			if not system['complete']:
 				complete = False
 		if not complete:
-			print "waiting %i seconds for results ..." % (wait)
-			time.sleep(wait)
+			# I had a fancy 2nd level for loop, but I wanted the timestamp to refresh.  Feel free to fix
+			print "\r", timestamp(), "           waiting for results           ",
+			sys.stdout.flush()
+			print "\r", timestamp(), "         . waiting for results .         ",
+			time.sleep(1)
+			sys.stdout.flush()
+			print "\r", timestamp(), "       . . waiting for results . .       ",
+			time.sleep(1)
+			sys.stdout.flush()
+			print "\r", timestamp(), "     . . . waiting for results . . .     ",
+			time.sleep(1)
+			sys.stdout.flush()
+			print "\r", timestamp(), "   . . . . waiting for results . . . .   ",
+			time.sleep(1)
+			sys.stdout.flush()
+			print "\r", timestamp(), " . . . . . waiting for results . . . . . ",
+			time.sleep(1)
+			if waits > 18000:
+				print "\n", timestamp(), "Warning: Process is taking too long.  Try running 'rhn_check' on the clients."
+			elif waits > 4500:
+				print "\n", timestamp(), "Warning: Process is taking long, are the systems configured for remote acctions?"
+			waits += 1
+		else:
+			print "\n"
 
 	for system in systems:
 		if system['skip']: continue
 		data = system['output'].split('\n')
-		if options.debug: print "DEBUG: Raw output from %s script: %s" %(system['name'], data)
+		if options.debug: print timestamp(), "DEBUG: Raw output from %s script: %s" %(system['name'], data)
 		for line in data:
-			if options.debug: print "DEBUG: %s checking '%s'" % (system['name'], line)
+			if options.debug: print timestamp(), "DEBUG: %s checking '%s'" % (system['name'], line)
 			if 'System ID:' in line:
-				if options.verbose: print "Found system_id of:", line.split()[-1]
+				if options.verbose: print timestamp(), "+ Found system_id of:", line.split()[-1]
 				system['system_id'] = line.split()[-1].lower()
 				break
 		else:
 			system['system_id'] = False
 	for system in systems:
 		if system['skip']: continue
-		if options.verbose: print "System ID for %s is: %s" % (system['name'], system['system_id'])
+		if options.verbose: print timestamp(), "Info: System ID for %s is: %s" % (system['name'], system['system_id'])
 		new_channel = DELL_INFO['label'] + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
 		system['system_channel'] = new_channel
-		if options.verbose: print "Subscribing %s to channel %s" % (system['name'], system['system_channel'])
+		if options.verbose: print timestamp(), "+ Subscribing %s to channel %s" % (system['name'], system['system_channel'])
 		if not subscribe(key, system['base_channel'], system['system_channel'], system['id'], system['name']):
 			system['no_child'] = True
 		else:
@@ -503,13 +654,13 @@ def show_client_results(systems):
 		elif system['complete']:
 			completed.append(system['name'])
 	if completed == []:
-		print "No systems were successfully completed."
+		print "! No systems were successfully completed!"
 	else:
-		print "The following systems were completed: %s" % completed
+		print "Completed: %s" % completed
 	if not skipped == []:
-		print "The following systems were skipped: %s" % skipped
+		print "Skipped: %s" % skipped
 	if not no_child == []:
-		print "The following do not have system-specific child channels: %s" % no_child
+		print "No system-specific channel: %s" % no_child
 
 def reconstruct_name(package):
 	'''Take dictionary of package name in Satellite and reconstruct the full name'''
@@ -533,10 +684,10 @@ def main():
 		current_channel_labels = []
 		for channel in current_channels:
 			current_channel_labels.append(channel['label'])
-		if options.debug: print "DEBUG: Channels on current Satellite server:", current_channel_labels
+		if options.debug: print timestamp(), "DEBUG: Channels on current Satellite server:", current_channel_labels
 		if client.api.get_version() < 5.1:
 			# TODO: Haven't tested with Spacewalk, not sure how it is reported
-			print "This script uses features not available with Satellite versions older than 5.1"
+			print timestamp(), "! This script uses features not available with Satellite versions older than 5.1"
 			sys.exit(1)
 	if not options.client_actions_only:
 		# This begins the server actions section
@@ -544,29 +695,30 @@ def main():
 			try:
 				os.makedirs(options.localdir)
 			except:
-				print "Error: Unable to create %s" % (options.localdir)
+				print timestamp(), "! Error: Unable to create %s" % (options.localdir)
 				raise
 		if (not options.delete) and (not options.no_rsync):
 			# Sync local Dell repo with public Dell repo
-			returncode = get_dell_repo(DELL_REPO_URL, options.localdir)
+			returncode = get_dell_repo(options.repo, options.localdir, only_systems)
 			if not returncode == 0:
-				print "rsync process exited with returncode:", returncode
+				print timestamp(), "! rsync process exited with returncode:", returncode
+				raise
 		# Build child channels based on dell repo as needed
-		systems = build_channel_list(options.localdir, SYSTEM_VENDOR_ID)
+		systems = build_channel_list(options.localdir, SYSTEM_VENDOR_ID, only_systems, DELL_SYSTEM_NAMES)
 		systems['platform_independent'] = PLATFORM_INDEPENDENT
 		# Iterate through list of supported RHEL versions and archs, create parent channels if needed
 		channels = {}
-		print "Checking base channels on Satellite server"
+		print timestamp(), "Checking base channels on Satellite server"
 		for parent in SUPPORTED_CHANNELS:
-			if options.verbose: print "Checking base channel", parent
+			if options.verbose: print timestamp(), "Checking base channel", parent
 			# Check each supported base channel, skip if it does not exist on Satellite server
 			if parent not in current_channel_labels:
-				if options.verbose: print "-%s is not a current base channel, skipping." % (parent)
+				if options.verbose: print timestamp(), "- %s is not a current base channel, skipping." % (parent)
 				continue
 			else:
 				channels[parent] = SUPPORTED_CHANNELS[parent]
 				channels[parent]['child_channels'] = []		# Initialize key for child channels
-				if options.verbose: print "+%s found on Satellite server, checking child channels." % (parent)
+				if options.verbose: print timestamp(), "+ %s found on Satellite server, checking child channels." % (parent)
 			if channels[parent]['arch'] == 'i386':
 				# This is because Satellite stores x86 as 'ia32'
 				arch = 'channel-ia32'
@@ -574,7 +726,7 @@ def main():
 				arch = 'channel-' + channels[parent]['arch']
 			subdir = channels[parent]['subdir']
 			
-			print "  Checking child channels for %s" % parent
+			print timestamp(), "  Checking child channels for %s" % parent
 			for system in systems:
 				# use system name plus parent to create a unique child channel
 				c_label = DELL_INFO['label'] + '-' + system + '-' + parent
@@ -582,84 +734,84 @@ def main():
 				c_summary = DELL_INFO['summary'] + ' on ' + systems[system] + ' running ' + parent
 				c_arch = arch
 				c_dir = options.localdir + system + '/' + subdir
-				if options.verbose: print "    Checking child channel:", c_label
+				if options.verbose: print timestamp(), "    Checking child channel:", c_label
 				if channel_exists(key, c_label, current_channels):
 					if options.delete:
 						# Delete child channels if requested
 						if options.demo:
-							print "Deleting channel:", c_label
+							print timestamp(), "+ Deleting channel:", c_label
 						else:
 							delete_channel(key, c_label)
 					else:
-						if options.debug: print "DEBUG: checking for dir:", c_dir
-						if options.verbose: print "Child channel already exists:", c_label
+						if options.debug: print timestamp(), "DEBUG: checking for dir:", c_dir
+						if options.verbose: print timestamp(), "Info: Child channel already exists:", c_label
 						if os.path.isdir(c_dir):
 							channels[parent]['child_channels'].append(system)
 				else:
 					if not options.delete:
 						# Build child channels if needed
-						if options.debug: print "DEBUG: checking for dir:", c_dir
+						if options.debug: print timestamp(), "DEBUG: checking for dir:", c_dir
 						if os.path.isdir(c_dir):
 							channels[parent]['child_channels'].append(system)
-							if options.debug: print "DEBUG: %s exists for %s, creating channel" % (subdir, system)
+							if options.debug: print timestamp(), "DEBUG: %s exists for %s, creating channel" % (subdir, system)
 							if options.demo:
-								if options.verbose: print "Creating child channel:", c_label
+								if options.verbose: print timestamp(), "+ Creating child channel:", c_label
 							else:
 								create_channel(key, c_label, c_name, c_summary, c_arch, parent)
 						else:
-							if options.debug: print "DEBUG: %s does not exists for %s" % (subdir, system)
+							if options.debug: print timestamp(), "DEBUG: %s does not exists for %s" % (subdir, system)
 
 		if (not options.delete) and (not options.no_packages):
 			# Iterate through channels, pushing rpms from the local repo as needed
 			# TODO: check if rpm is already uploaded and orphaned or part of another channel
-			if options.debug: print "DEBUG: Channel mapping:", channels
-			print "Syncing rpms as needed"
+			if options.debug: print timestamp(), "DEBUG: Channel mapping:", channels
+			print timestamp(), "Syncing rpms as needed"
 			for parent in channels:
-				print "  Syncing rpms for child channels in %s" % parent
+				print timestamp(), "  Syncing rpms for child channels in %s" % parent
 				for child in channels[parent]['child_channels']:
 					dir = options.localdir + child + '/' + channels[parent]['subdir']
 					channel = DELL_INFO['label'] + '-' + child + '-' + parent
-					if options.verbose: print "    Syncing rpms to child channel", channel
-					if options.debug: print "DEBUG: Looking for rpms in", dir
+					if options.verbose: print timestamp(), "    Syncing rpms to child channel", channel
+					if options.debug: print timestamp(), "DEBUG: Looking for rpms in", dir
 					rpms = gen_rpm_list(dir)
 					# Get all packages in child channel
 					existing_packages = client.channel.software.list_all_packages(key, channel)
-					if options.debug: print "DEBUG: Existing packages in", channel, existing_packages
+					if options.debug: print timestamp(), "DEBUG: Existing packages in", channel, existing_packages
 					for rpm in rpms:
-						if options.debug: print "DEBUG: Working on:", rpm
+						if options.debug: print timestamp(), "DEBUG: Working on:", rpm
 						# Strip off '.rpm' at end of file to match against existing entries
 						rpm_name = rpm.split('.rpm')[0]
 						# Now strip off any preceeding paths
 						rpm_name = rpm_name.split('/')[-1]
 						# Iterate through existing packages, and skip existing ones
-						if options.verbose: print "Checking if %s is already on the Satellite server in %s" % (rpm_name, channel)
+						if options.verbose: print timestamp(), "Checking if %s is already on the Satellite server in %s" % (rpm_name, channel)
 						for package in existing_packages:
 							existing_rpm_name = reconstruct_name(package)
-							if options.debug: print "DEBUG: Checking match for %s and %s" % (rpm_name, existing_rpm_name)
+							if options.debug: print timestamp(), "DEBUG: Checking match for %s and %s" % (rpm_name, existing_rpm_name)
 							if existing_rpm_name == rpm_name:
 								# This means the intended rpm is already in Satellite, so skip
-								if options.verbose: print "- %s already in Satellite, skipping" % (rpm_name)
+								if options.verbose: print timestamp(), "- %s already in Satellite, skipping" % (rpm_name)
 								break
 						else:
-							if options.verbose: print "+ %s is not in Satellite, adding" % (rpm_name)
-							if options.debug: print "DEBUG: Calling: push_rpm(",rpm, channel, options.user, options.password, options.satserver, ")"
+							if options.verbose: print timestamp(), "+ %s is not in Satellite, adding" % (rpm_name)
+							if options.debug: print timestamp(), "DEBUG: Calling: push_rpm(",rpm, channel, options.user, options.password, options.satserver, ")"
 							returncode = push_rpm(rpm, channel, options.user, options.password, options.satserver)
 							if not returncode == 0:
-								print "rhnpush process exited with returncode:", returncode
+								print timestamp(), "! rhnpush process exited with returncode:", returncode
 								if returncode == 255:
-									print "You may force package uploads with --force"
+									print timestamp(), "You may force package uploads with --force"
 								sys.exit(1)
-			print "Completed uploading rpms."
+			print timestamp(), "Completed uploading rpms.\n"
 
 	if (not options.server_actions_only) and (not options.demo) and (not options.delete):
 		# This is the client actions section
-		print "Subscribing registered systems to the %s channel" % (PLATFORM_INDEPENDENT)
+		print timestamp(), "Subscribing registered systems to the %s channel." % (PLATFORM_INDEPENDENT)
 		client_systems = subscribe_clients(key)
-		print "Scheduling software installation and actions on clients"
+		print timestamp(), "Scheduling software installation and actions on clients."
 		client_systems = schedule_actions(key, client_systems)
-		print "Waiting for client actions to complete"
+		print timestamp(), "Waiting for client actions to complete."
 		client_systems = get_action_results(key, client_systems)
-		print "All actions completed.\n"
+		print timestamp(), "All actions completed.\n"
 		show_client_results(client_systems)
 
 	if not options.demo: logout(key)
