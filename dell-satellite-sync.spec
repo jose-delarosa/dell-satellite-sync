@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 0.4.1
+Version: 0.4.2
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -24,6 +24,7 @@ and subscribing any registered Dell systems to the correct child channel.
 cp dell-satellite-sync.py %{buildroot}/usr/share/dell-satellite-sync/
 [ ! -d %{buildroot}/usr/bin ] && mkdir -p %{buildroot}/usr/bin
 ln -sf /usr/share/dell-satellite-sync/dell-satellite-sync.py %{buildroot}/usr/bin/dell-satellite-sync
+install -Dp -m0644 dell-satellite-sync.8 %{buildroot}%{_mandir}/man8/dell-satellite-sync.8
 
 %clean
 [ %{buildroot} = "/" ] && exit 1
@@ -41,9 +42,12 @@ rm -rf %{buildroot}
 %defattr(-,root,root)
 /usr/share/dell-satellite-sync/
 /usr/bin/dell-satellite-sync
+%doc %{_mandir}/man8/dell-satellite-sync.8*
 %doc README LICENSE TODO
 
 %changelog
+* Sun Nov 8 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
+- create the man page 
 * Wed Nov 7 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.1-1
 - Fixed timeout values from 0.4, which were not sane
 - Added abort but report success/failed clients if Ctrl+c or 2 hour timeout
