@@ -1,0 +1,134 @@
+.TH dell-satellite-sync 8 
+.SH NAME
+.B dell-satellite-sync 
+- Helps manage Dell Linux repositories
+
+.SH DESCRIPTION
+.PP
+This program will rsync an offline repository from linux.dell.com, then create Satellite channels and populate them with the rpms, and subscribe registered clients to the correct channels.
+
+.SH GENERAL OPTIONS
+
+.B  -h,--help            
+show this help message and exit
+.br
+.ne 3
+
+.B  -u USER, --user=USER
+Satellite username
+.br
+.ne 3
+
+.B  -p PASSWORD, --password=PASSWORD
+Satellite password (will be promoted if omitted)
+.br
+.ne 3
+
+.B  -s SATSERVER, --server=SATSERVER
+FQDN of your Satellite server
+.br
+.ne 3
+
+.B  -l 
+.I LOCALDIR 
+.B --localdir=
+.I LOCALDIR
+Local dir to hold Dell repo
+.br
+.ne 3
+
+.B  -d, --delete          
+Delete existing Dell channels and packages
+.br
+.ne 3
+
+.B  -f, --force          
+(Force package upload)
+.br
+.ne 3
+
+.B  -a, --all             
+Subscribe all systems, whether Dell vendor or not.
+.br
+.ne 3
+
+.B  -g 
+.I GPG_URL 
+.B --gpg-url=
+.I GPG_URL
+URL where the GPG keys are located (should be accessible by clients.  e.g. http://satserver.example.com/pub/).
+.br
+.ne 3
+
+.B  --no-rsync            
+Skip rsync (local repo must already be present)
+.br
+.ne 3
+
+.B  -r REPO, --repository=REPO
+Repository to sync from, defaults to latest e.g. linux.dell.com/repo/hardware/OMSA_6.1
+.br
+.ne 3
+
+.B  \-o 
+.I ONLY_SYSTEMS
+--only-systems=
+.I ONLY_SYSTEMS
+Only create child channels for these systems.  e.g. -o per900,pe1800,pet610
+.br
+.ne 3
+
+.B  \--no-packages         
+Skip uploading packages
+.br
+.ne 3
+
+.B  -S, --server-actions-only
+Only create channels and upload rpms, skip client subscription
+.br
+.ne 3
+
+.B  -C, --client-actions-only
+Only subscribe clients (channels and rpms must already be on server)
+.br
+.ne 3
+
+.B  -c, --client-mode     
+Runs client actions only from a client (feature not implemented yet))
+.br
+.ne 3
+
+.B  -5, --rhel5-only     
+Only work with RHEL 5 base channels
+.br
+.ne 3
+
+.B  -4, --rhel4-only      
+Only work with RHEL 4 base channels
+.br
+.ne 3
+
+.B  -D, --demo            
+Enable demo mode (simulation only, does not connect to a Satellite server)
+.br
+.ne 3
+
+.B  -v, --verbose         
+Enable verbose output
+.br
+.ne 3
+
+.B  \--debug               
+Enable lots of debug output (more than verbose)
+.br
+.ne 3
+
+
+.SH SEE ALSO
+	rsync(1)
+
+.SH FILES
+	/usr/bin/dell-satellite-sync
+
+.SH AUTHORS
+	Vinny Valdez <vvaldez@redhat.com>
