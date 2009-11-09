@@ -72,7 +72,7 @@ except:
 usage = "usage: %prog [options]\nThis program will rsync an offline repository from linux.dell.com, then create Satellite channels and populate them with the rpms, and subscribe registered clients to the correct channels.\nUse -h or --help for additional information."
 parser = OptionParser(usage=usage, description="")
 parser.add_option("-u", "--user", dest="user", help="Satellite username", default=SATELLITE_USER)
-parser.add_option("-p", "--password", dest="password", help="Satellite password (will be promoted if omitted)", default=SATELLITE_PASSWORD)
+parser.add_option("-p", "--password", dest="password", help="Satellite password (will be prompted if omitted)", default=SATELLITE_PASSWORD)
 parser.add_option("-s", "--server", dest="satserver", help="FQDN of your Satellite server", default=SATELLITE_SERVER)
 parser.add_option("-l", "--localdir", dest="localdir", help="Local dir to hold Dell repo", default=LOCAL_REPO)
 parser.add_option("-d", "--delete", action="store_true", dest="delete", help="Delete existing Dell channels and packages", default=False)
