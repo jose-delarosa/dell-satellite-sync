@@ -46,8 +46,8 @@ rm -rf %{buildroot}
 %doc README LICENSE TODO
 
 %changelog
-* Sun Nov 8 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
-- create the man page 
+* Sun Nov 9 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
+- created the man page 
 * Wed Nov 7 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.1-1
 - Fixed timeout values from 0.4, which were not sane
 - Added abort but report success/failed clients if Ctrl+c or 2 hour timeout
