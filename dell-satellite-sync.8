@@ -74,7 +74,7 @@ The following steps are performed during this phase:
 
 1. A list of all registered systems is compiled and any without a Dell vendor id are skipped.  The remaining systems continue through these steps.  This behavior can be overriden with the \fB--all\fR option.
 
-2. Two GPG keys from Dell are installed via a remote action on each system. See the section \fBPRE-REQUISITES\fR for details on allowing remote actions.  By default the keys are obtained from the specified repository (default http://\fBlinux.dell.com/repo/hardware/latest/\fR), but can be explicitly specified with \fB--gpg-url\fR.
+2. Two GPG keys from Dell are installed via a remote action on each system. See the section \fBPRE-REQUISITES\fR for details on allowing remote actions.  By default the keys are obtained from the specified repository (default \fBhttp://linux.dell.com/repo/hardware/latest/\fR), but can be explicitly specified with \fB--gpg-url\fR.
 
 3. The systems are subscribed to the Dell platform independent child channel.
 
@@ -97,122 +97,116 @@ o Remote actions must be allowed by running the command "\fIrhn-actions-control 
 
 o The \fIosad\fR package should be installed and started on the clients.  This allows very quick execution of remote actions and package installs, rather than waiting for the default 2 hour check-in interval.
 
-.SH OPTIONS
+.SH "OPTIONS"
+.SS "COMMON OPTIONS"
+.TP
+\fB-D, --demo\fR
+Run in simulation mode.  Does not connect to any servers or clients.
+.TP
+\fB-g\fIURL\fB, --gpg-url=\fIURL\fB\fR
+URL where GPG keys are available to he systems. If this option is not specified, first a default of \fBhttp://linux.dell.com/repo/hardware/latest/\fR is used, otherwise if \fB--repo\fR is specified, then that location will be used.
+.TP
+\fB-h, --help\fR
+Display list of options
+.TP
+\fB-o\fILIST_OF_SYSTEMS\fB, --only-systems=\fILIST_OF_SYSTEMS\fB\fR
+Only rsync and create child channels for systems in LIST_OF_SYSTEMS e.g. \fB--only-systems pe1800,per900\fR
+.TP
+\fB-p\fIPASSWORD\fB, --password=\fIPASSWORD\fB\fR
+Password for the user specified with \fB--user\fR.  If this option is not specified, it will be prompted for.
+.TP
+\fB-r\fIREPOSITORY\fB, --repo=\fIREPOSITORY\fB\fR
+Repository to call \fIrsync\fR against.  Also used to construct location of GPG keys, if \fB--gpg-url\fR is not specified.
+.TP
+\fB-s\fIHOSTNAME\fB, --server=\fIHOSTNAME\fB\fR
+Hostname of your RHN Satellite/Spacewalk server (required).
+.TP
+\fB-u\fIUSERNAME\fB, --user=\fIUSERNAME\fB\fR
+Username for RHN Satellite/Spacewalk (required).
+.TP
+\fB-v, --verbose\fR
+Print extra information.
 
-.B  -h,--help            
-show this help message and exit
-.br
-.ne 3
+.SS "SERVER-SIDE ACTIONS"
+.TP
+\fB-4, --rhel4-only\fR
+Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or --rhel5-only are required)
+.TP
+\fB-5, --rhel5-only\fR
+Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or --rhel4-only are required)
+.TP
+\fB-d, --delete\fR
+Delete all Dell child channels and packages.  Packages can be left on the server with \fB--no-packages\fR.
+.TP
+\fB-f, --force\fR
+Force package upload via \fIrhnpush\fR (required for version 0.4)
+.TP
+\fB-l\fIDIRECTORY\fB, --localdir=\fIDIRECTORY\fB\fR
+Local directory to hold a copy of the Dell repositories.  This option is also needed when specifying \fB--delete\fR, since the channel list is built from this directory tree (required).
+.TP
+\fB--no-packages\fR
+Do not push or delete any packages.
+.TP
+\fB--no-rsync\fR
+Do not call \fIrsync\fR to syncronize the Dell repositories.  A local copy must already exist at \fB--localdir\fR.
+.TP
+\fB-S, --server-actions-only\fR
+Only perform server-side actions, including calling \fIrsync\fR, creating child channels, and uploading rpms via \fIrhnpush\fR.
 
-.B  -u USER, --user=USER
-Satellite username
-.br
-.ne 3
+.SS "CLIENT-SIDE ACTIONS"
+.TP
+\fB-a, --all\fR
+Perform client actions on all systems, regardless of vendor id.  This will subscribe all clients to the Dell platform independent software channel, and attempt to determine the BIOS hardware id.  Note that a matching child channel may not exist if it is not a Dell system.
+.TP
+\fB-C, --client-actions-only\fR
+Only perform client-side actions, including scheduling remote actions, installing package, and subscribing systems.  Channels and rpms must already be on the server.
 
-.B  -p PASSWORD, --password=PASSWORD
-Satellite password (will be prompted if omitted)
-.br
-.ne 3
+.SS "DEBUGGING AND EXPERIMENTAL OPTIONS"
+.TP
+\fB--auto\fR
+Automatically determine what types of Dell systems are registered with RHN Satellite/Spacewalk, and rsync/create child channels for only those types, essentially internally invoking \fB--only-systems\fR (not implemented yet).
+.TP
+\fB-C, --client-mode\fR
+Runs client actions from a client.  Use this to avoid using remote actions, and supply the authentication client-side instead. (not implemented yet).
+.TP
+\fB--debug\fR
+Print lots of extra and ugly (but potentially useful) output.
 
-.B  -s SATSERVER, --server=SATSERVER
-FQDN of your Satellite server
-.br
-.ne 3
+.RE
 
-.B  -l 
-.I LOCALDIR 
-.B --localdir=
-.I LOCALDIR
-Local dir to hold Dell repo
-.br
-.ne 3
+.SH "EXAMPLES"
 
-.B  -d, --delete          
-Delete existing Dell channels and packages
-.br
-.ne 3
+\fBsatellite-sync --list-channels\fR
 
-.B  -f, --force          
-(Force package upload)
-.br
-.ne 3
+\fBsatellite-sync --channel=rhel-i386-as-3\fR
 
-.B  -a, --all             
-Subscribe all systems, whether Dell vendor or not.
-.br
-.ne 3
+\fBsatellite-sync -c rhel-i386-as-3 -c redhat-advanced-server-i386\fR
 
-.B  -g 
-.I GPG_URL 
-.B --gpg-url=
-.I GPG_URL
-URL where the GPG keys are located (should be accessible by clients.  e.g. http://satserver.example.com/pub/).
-.br
-.ne 3
+\fBsatellite-sync -m /var/tmp/channel-dumps --list-channels\fR
 
-.B  --no-rsync            
-Skip rsync (local repo must already be present)
-.br
-.ne 3
+\fBsatellite-sync -m /var/tmp/channel-dumps -c rhel-i386-as-3\fR
 
-.B  -r REPO, --repository=REPO
-Repository to sync from, defaults to latest e.g. linux.dell.com/repo/hardware/OMSA_6.1
-.br
-.ne 3
+\fBsatellite-sync --iss-parent=stage-satellite.yourorg.com -c rhel-i386-as-4\fR
+.SH "SEE ALSO"
 
-.B  \-o 
-.I ONLY_SYSTEMS
---only-systems=
-.I ONLY_SYSTEMS
-Only create child channels for these systems.  e.g. -o per900,pe1800,pet610
-.br
-.ne 3
+db-control(1) - embedded database environment only!
 
-.B  \--no-packages         
-Skip uploading packages
-.br
-.ne 3
+rhn-charsets(8)
 
-.B  -S, --server-actions-only
-Only create channels and upload rpms, skip client subscription
-.br
-.ne 3
+rhnpush(8)
 
-.B  -C, --client-actions-only
-Only subscribe clients (channels and rpms must already be on server)
-.br
-.ne 3
+rhn-satellite-activate(8)
 
-.B  -c, --client-mode     
-Runs client actions only from a client (feature not implemented yet))
-.br
-.ne 3
+rhn-schema-version(8)
 
-.B  -5, --rhel5-only     
-Only work with RHEL 5 base channels
-.br
-.ne 3
+rhn-ssl-dbstore(8)
+.SH "AUTHORS"
 
-.B  -4, --rhel4-only      
-Only work with RHEL 4 base channels
-.br
-.ne 3
+Todd Warner <taw@redhat.com>
 
-.B  -D, --demo            
-Enable demo mode (simulation only, does not connect to a Satellite server)
-.br
-.ne 3
+Mihai Ibanescu <misa@redhat.com>
 
-.B  -v, --verbose         
-Enable verbose output
-.br
-.ne 3
-
-.B  \--debug               
-Enable lots of debug output (more than verbose)
-.br
-.ne 3
-
+Pradeep Kilambi <pkilambi@redhat.com>
 
 .SH SEE ALSO
 	rsync(1)
