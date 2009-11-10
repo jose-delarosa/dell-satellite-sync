@@ -1,13 +1,103 @@
-.TH dell-satellite-sync 8 
-.SH NAME
-.B dell-satellite-sync 
-- Helps manage Dell Linux repositories
+.TH "DELL-SATELLITE-SYNC" "8" "9 November 2009" "Version 0.4.2" ""
 
+.SH NAME
+dell-satellite-sync \- synchronizes Dell linux repositories into an RHN Satellite or Spacewalk server, and subscribes Dell systems to the correct channels.
+
+.SH SYNOPSIS
+
+.nf
+
+\fBdell-satellite-sync\fR [ \fBoptions \fI\&...\fB\fR ] 
+
+ [ \fB-4\fR ] [ \fB--rhel4-only\fR ]
+
+ [ \fB-5\fR ] [ \fB--rhel5-only\fR ]
+
+ [ \fB-a\fR ] [ \fB--all\fR ]
+
+ [ \fB-c\fR ] [ \fB--client-mode\fR ]
+
+ [ \fB-C\fR ] [ \fB--client-actions-only\fR ]
+
+ [ \fB-d\fR ] [ \fB--delete\fR ]
+
+ [ \fB-D\fR ] [ \fB--demo\fR ]
+
+ [ \fB--debug\fR ]
+
+ [ \fB-f\fR ] [ \fB--force\fR ]
+
+ [ \fB-g\fIURL\fB\fR ] [ \fB--gpg-url=\fIURL\fB\fR ]
+
+ [ \fB-l\fIDIRECTORY\fB\fR ] [ \fB--localdir=\fIDIRECTORY\fB\fR ]
+
+ [ \fB--no-packages\fR ]
+
+ [ \fB--no-rsync\fR ]
+
+ [ \fB-o\fILIST_OF_SYSTEMS\fB\fR ] [ \fB--only-systems=\fILIST_OF_SYSTEMS\fB\fR ]
+
+ [ \fB-p\fIPASSWORD\fB\fR ] [ \fB--password=\fIPASSWORD\fB\fR ]
+
+ [ \fB-r\fIREPOSITORY\fB\fR ] [ \fB--repo=\fIREPOSITORY\fB\fR ]
+
+ [ \fB-s\fIHOSTNAME\fB\fR ] [ \fB--server=\fIHOSTNAME\fB\fR ]
+
+ [ \fB-S\fR ] [ \fB--server-actions-only\fR ]
+
+ [ \fB-u\fIUSER\fB\fR ] [ \fB--user=\fIUSER\fB\fR ]
+
+ [ \fB-v\fR ] [ \fB--verbose\fR ]
+
+
+.fi
 .SH DESCRIPTION
 .PP
-This program will rsync an offline repository from linux.dell.com, then create Satellite channels and populate them with the rpms, and subscribe registered clients to the correct channels.
+The Dell Satellite Sync tool (\fBdell-satellite-sync\fR) will synchronize the Dell official Linux software repositories into an RHN Satellite or Spacewalk server, and subscribe any registered systems that have a Dell vendor id to the correct child channel.
 
-.SH GENERAL OPTIONS
+By default, two sets of actions are performed: \fBserver-side actions\fR and \fclient-side actions\fR
+
+.SS "SERVER-SIDE ACTIONS"
+.PP
+The following steps are performed during this phase:
+
+1. \fIrsync\fR is used to obtain a copy of the Dell official Linux repositories.  The default URL for this is \fBlinux.dell.com/repo/hardware/latest/\fR - this can be changed with the \fB--repo\fR option as needed.  If a local copy of the repositories already exists, this can be skipped with \fB--no-rsync\fR.
+
+2. Child channels are created representing each Dell hardware system for any base channels found on the server.  The current Dell repositories contain 49 hardware systems.  Supported base channels are Red Hat Enterprise Linux version 4 and 5, both i386 and x86_64, and any derivative of these (e.g. z-stream, long life).  To reduce the number of child channels created, specify the types of systems you would like managed with the \fB--only-systems\fR option.
+
+3. An additional child channel is also created for each base channel that contains platform independent Dell software.
+
+4. Each child channel is populated with rpms from the corresponding local repository using \fIrhnpush\fR, which must be installed.  This dependency is not built into the rpm because the client-side actions do not require it, which can be run separately.
+
+.SS "CLIENT-SIDE ACTIONS"
+The following steps are performed during this phase:
+
+1. A list of all registered systems is compiled and any without a Dell vendor id are skipped.  The remaining systems continue through these steps.  This behavior can be overriden with the \fB--all\fR option.
+
+2. Two GPG keys from Dell are installed via a remote action on each system. See the section \fBPRE-REQUISITES\fR for details on allowing remote actions.  By default the keys are obtained from the specified repository (default http://\fBlinux.dell.com/repo/hardware/latest/\fR), but can be explicitly specified with \fB--gpg-url\fR.
+
+3. The systems are subscribed to the Dell platform independent child channel.
+
+4. The package \fIsmbios-utils\fR and dependencies are scheduled for remote install on each system.
+
+5. A remote action is run on each system to execute \fIsmbios-sys-info\fR.  This reports the BIOS hardware id of the system.  This information is used to subscribe the system to the correct child channel.
+
+.SS "PRE-REQUISITES
+For the server-side actions to complete, the \fIrhnpush\fR package must be installed on the system running \fBdell-satellite-sync\fR.
+
+For the client-side actions to complete, The following conditions must be met:
+
+o All registered systems must belong to their respective \fIrhn-tools\fR child channel.
+
+o The systmes must have the \fIprovisioning\fR entitlement.
+
+o The package \fIrhncfg-actions\fR must be installed.
+
+o Remote actions must be allowed by running the command "\fIrhn-actions-control --enable-run\fR" (this can be accomplished through an rpm and pushed to the clients, or by another means outside of RHN Satellite/Spacewalk).
+
+o The \fIosad\fR package should be installed and started on the clients.  This allows very quick execution of remote actions and package installs, rather than waiting for the default 2 hour check-in interval.
+
+.SH OPTIONS
 
 .B  -h,--help            
 show this help message and exit
