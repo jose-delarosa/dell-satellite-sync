@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 0.4.2
+Version: 0.4.3
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -8,7 +8,7 @@ Group: Applications/Dell
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch: noarch
 Source0: %{name}-%{version}.tar.gz
-Requires: python
+Requires: python, rsync
 ExcludeArch: s390 s390x ppc64
 
 %description
@@ -46,7 +46,9 @@ rm -rf %{buildroot}
 %doc README LICENSE TODO
 
 %changelog
-* Sun Nov 9 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
+* Wed Nov 10 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.3-1
+- Expanded man page with synopsis, examples, bugs
+* Sun Nov 8 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
 - created the man page 
 * Wed Nov 7 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.1-1
 - Fixed timeout values from 0.4, which were not sane
