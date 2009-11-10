@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # _author_ = Vinny Valdez <vvaldez@redhat.com>
-# _version_ = 0.4.1
+# _version_ = 0.4.2
 #
 # Copyright (c) 2009 Red Hat, Inc.
 #
