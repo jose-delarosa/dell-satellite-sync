@@ -55,7 +55,7 @@ dell-satellite-sync \- synchronizes Dell linux repositories into an RHN Satellit
 .PP
 The Dell Satellite Sync tool (\fBdell-satellite-sync\fR) will synchronize the Dell official Linux software repositories into an RHN Satellite or Spacewalk server, and subscribe any registered systems that have a Dell vendor id to the correct child channel.
 
-By default, two sets of actions are performed: \fBserver-side actions\fR and \fclient-side actions\fR
+By default, two sets of actions are performed: \fBserver-side actions\fR and \fBclient-side actions\fR
 
 .SS "SERVER-SIDE ACTIONS"
 .PP
@@ -130,10 +130,14 @@ Print extra information.
 .SS "SERVER-SIDE ACTIONS"
 .TP
 \fB-4, --rhel4-only\fR
-Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or --rhel5-only are required)
+Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or 
+.B --rhel5-only 
+are required)
 .TP
 \fB-5, --rhel5-only\fR
-Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or --rhel4-only are required)
+Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or 
+.B --rhel4-only 
+are required)
 .TP
 \fB-d, --delete\fR
 Delete all Dell child channels and packages.  Packages can be left on the server with \fB--no-packages\fR.
