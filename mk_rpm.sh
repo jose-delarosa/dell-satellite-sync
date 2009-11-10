@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILE_LIST="dell-satellite-sync.py LICENSE README TODO"
+FILE_LIST="dell-satellite-sync.py LICENSE README TODO dell-satellite-sync.8"
 PACKAGE_NAME=dell-satellite-sync
 
 VERSION=$(grep "^Version:" dell-satellite-sync.spec | awk '{ print $2 }')
