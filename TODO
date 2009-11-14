@@ -6,3 +6,4 @@
 * Test with Spacewalk (all versions)
 * Run from RHEL 4
 * Add --auto option for scanning environment to see what Dell systems there are
+* Add logging optoins
