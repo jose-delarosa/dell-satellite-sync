@@ -50,13 +50,17 @@ SUPPORTED_CHANNELS = {
 	'rhel-x86_64-as-4' :  { 'arch' : 'x86_64' , 'subdir' : 'rh40_64' },
 	'rhel-i386-server-5' :  { 'arch' : 'i386' , 'subdir' : 'rh50' },
 	'rhel-x86_64-server-5' :  { 'arch' : 'x86_64' , 'subdir' : 'rh50_64' },
+	'rhel-i386-server-6' :  { 'arch' : 'i386' , 'subdir' : 'rh60' },
+	'rhel-x86_64-server-6' :  { 'arch' : 'x86_64' , 'subdir' : 'rh60_64' },
 }
 
 # Add channels that share arch and Dell repo subdir to the respective list
 RHEL4_i386_ALTS = ['rhel-i386-as-4.5.z','rhel-i386-as-4.6.z','rhel-i386-as-4.7.z','rhel-i386-as-4.8.z','rhel-i386-es-4','rhel-i386-es-4.5.z','rhel-i386-es-4.6.z','rhel-i386-es-4.7.z','rhel-i386-es-4.8.z']
 RHEL4_x86_64_ALTS = ['rhel-x86_64-as-4.5.z','rhel-x86_64-as-4.6.z','rhel-x86_64-as-4.7.z','rhel-x86_64-as-4.8.z','rhel-x86_64-es-4','rhel-x86_64-es-4.5.z','rhel-x86_64-es-4.6.z','rhel-x86_64-es-4.7.z','rhel-x86_64-es-4.8.z']
-RHEL5_i386_ALTS = ['rhel-i386-server-5.0.z','rhel-i386-server-5.1.z','rhel-i386-server-5.2.z','rhel-i386-server-5.3.ll','rhel-i386-server-5.3.z','rhel-i386-server-5.4.z']
-RHEL5_x86_64_ALTS = ['rhel-x86_64-server-5.0.z','rhel-x86_64-server-5.1.z','rhel-x86_64-server-5.2.z','rhel-x86_64-server-5.3.ll','rhel-x86_64-server-5.3.z','rhel-x86_64-server-5.4.z']
+RHEL5_i386_ALTS = ['rhel-i386-server-5.0.z','rhel-i386-server-5.1.z','rhel-i386-server-5.2.z','rhel-i386-server-5.3.ll','rhel-i386-server-5.3.z','rhel-i386-server-5.4.z','rhel-i386-server-5.6.z']
+RHEL5_x86_64_ALTS = ['rhel-x86_64-server-5.0.z','rhel-x86_64-server-5.1.z','rhel-x86_64-server-5.2.z','rhel-x86_64-server-5.3.ll','rhel-x86_64-server-5.3.z','rhel-x86_64-server-5.4.z','rhel-x86_64-server-5.6.z']
+RHEL6_i386_ALTS = []
+RHEL6_x86_64_ALTS = []
 
 ###################################################################################
 
@@ -86,6 +90,7 @@ parser.add_option("--no-packages", action="store_true", dest="no_packages", help
 parser.add_option("-S", "--server-actions-only", action="store_true", dest="server_actions_only", help="Only create channels and upload rpms, skip client subscription", default=False)
 parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="Only subscribe clients (channels and rpms must already be on server)", default=False)
 parser.add_option("-c", "--client-mode", action="store_true", dest="client_mode", help="Runs client actions only from a client (feature not implemented yet))", default=False)
+parser.add_option("-6", "--rhel6-only", action="store_true", dest="rhel6_only", help="Only work with RHEL 6 base channels", default=False)
 parser.add_option("-5", "--rhel5-only", action="store_true", dest="rhel5_only", help="Only work with RHEL 5 base channels", default=False)
 parser.add_option("-4", "--rhel4-only", action="store_true", dest="rhel4_only", help="Only work with RHEL 4 base channels", default=False)
 parser.add_option("-D", "--demo", action="store_true", dest="demo", help="Enable demo mode (simulation only, does not connect to a Satellite server)", default=False)
@@ -102,14 +107,20 @@ def timestamp():
 options.repo = options.repo.split('http://')[-1]	# Strip any http:// prefixes
 GPG_URL='http://%s' % options.repo
 error = False
-if not (options.delete or (options.rhel5_only or options.rhel4_only)):
-	print timestamp(), "! Error: 'Must specify either '--rhel5-only' or '--rhel4-only' for version 0.4 ore earlier."
+if not (options.delete or (options.rhel5_only or options.rhel4_only or options.rhel6_only)):
+	print timestamp(), "! Error: 'Must specify either '--rhel6-only' or '--rhel5-only' or '--rhel4-only' for version 0.4 or earlier."
 	error = True
 if options.server_actions_only and options.client_actions_only:
 	print timestamp(), "! Error: '--server-actions-only' and '--client-actions-only' are mutually exclusive"
 	error = True
-if options.rhel5_only and options.rhel4_only:
+if (options.rhel6_only and options.rhel5_only):
+	print timestamp(), "! Error: '--rhel6-only' and '--rhel5-only' are mutually exclusive"
+	error = True
+if (options.rhel5_only and options.rhel4_only):
 	print timestamp(), "! Error: '--rhel5-only' and '--rhel4-only' are mutually exclusive"
+	error = True
+if (options.rhel6_only and options.rhel4_only):
+	print timestamp(), "! Error: '--rhel6-only' and '--rhel4-only' are mutually exclusive"
 	error = True
 if options.client_actions_only and options.delete:
 	print timestamp(), "! Error: currently deleting channels from clients is not supported"
@@ -141,29 +152,50 @@ else:
 		options.password = getpass.getpass()
 
 # Clone details on base channels - moved here to make choices based on options
-# RHEL 4 i386 channels
+# RHEL 6 i386 channels
+if not options.rhel6_only and not options.rhel5_only and not options.rhel4_only:
+	# RHEL 6 i386 channels
+	for version in RHEL6_i386_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-6']
+	# RHEL 6 x86_64 channels
+	for version in RHEL6_x86_64_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-6']
+        # RHEL 5 i386 channels
+        for version in RHEL5_i386_ALTS:
+                SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-5']
+        # RHEL 5 x86_64 channels
+        for version in RHEL5_x86_64_ALTS:
+                SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+        # RHEL 4 i386 channels
+        for version in RHEL4_i386_ALTS:
+                SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-as-4']
+        # RHEL 4 x86_64 channels
+        for version in RHEL4_x86_64_ALTS:
+                SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+
+if options.rhel6_only:
+                # Remove base channels that are not RHEL 6 here
+                del SUPPORTED_CHANNELS['rhel-i386-server-5']
+                del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+                del SUPPORTED_CHANNELS['rhel-i386-as-4']
+                del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+
+# RHEL 5 i386 channels
 if options.rhel5_only:
 		# Remove base channels that are not RHEL 5 here
 		del SUPPORTED_CHANNELS['rhel-i386-as-4']
 		del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+		del SUPPORTED_CHANNELS['rhel-i386-server-6']
+		del SUPPORTED_CHANNELS['rhel-x86_64-server-6']
 	
-else:
-	for version in RHEL4_i386_ALTS:
-		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-as-4']
-	# RHEL 4 x86_64 channels
-	for version in RHEL4_x86_64_ALTS:
-		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+
+# RHEL 4 i386 channels
 if options.rhel4_only:
 		# Remove base channels that are not RHEL 4 here
 		del SUPPORTED_CHANNELS['rhel-i386-server-5']
 		del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
-else:
-	# RHEL 5 i386 channels
-	for version in RHEL5_i386_ALTS:
-		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-5']
-	# RHEL 5 x86_64 channels
-	for version in RHEL5_x86_64_ALTS:
-		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+		del SUPPORTED_CHANNELS['rhel-i386-server-6']
+		del SUPPORTED_CHANNELS['rhel-x86_64-server-6']
 
 sat_url = "http://%s/rpc/api" % options.satserver
 if options.debug:
