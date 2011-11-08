@@ -88,7 +88,7 @@ parser.add_option("-r", "--repository", dest="repo", help="Repository to sync fr
 parser.add_option("-o", "--only-systems", dest="only_systems", help="Only create child channels for these systems.  e.g. -o per900,pe1800,pet610", default=ONLY_SYSTEMS)
 parser.add_option("--no-packages", action="store_true", dest="no_packages", help="Skip uploading packages", default=False)
 parser.add_option("-S", "--server-actions-only", action="store_true", dest="server_actions_only", help="Only create channels and upload rpms, skip client subscription", default=False)
-parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="Only subscribe clients (channels and rpms must already be on server)", default=False)
+parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="Only subscribe clients (channels and rpms must already be on Satellite server)", default=False)
 parser.add_option("-c", "--client-mode", action="store_true", dest="client_mode", help="Runs client actions only from a client (feature not implemented yet))", default=False)
 parser.add_option("-6", "--rhel6-only", action="store_true", dest="rhel6_only", help="Only work with RHEL 6 base channels", default=False)
 parser.add_option("-5", "--rhel5-only", action="store_true", dest="rhel5_only", help="Only work with RHEL 5 base channels", default=False)
@@ -101,7 +101,7 @@ parser.add_option("--debug", action="store_true", dest="debug", default=False, h
 
 def timestamp():
     lt = time.localtime(time.time())
-    return "%02d.%02d.%04d %02d:%02d:%02d:" % (lt[2], lt[1], lt[0], lt[3], lt[4], lt[5])
+    return "%02d.%02d.%04d %02d:%02d:%02d:" % (lt[1], lt[2], lt[0], lt[3], lt[4], lt[5])
 
 # Perform some setup tasks
 options.repo = options.repo.split('http://')[-1]	# Strip any http:// prefixes
@@ -311,7 +311,7 @@ def channel_exists(key, channel, channels):
 	return False
 
 def create_channel(key, label, channels, name, summary, arch, parent):
-	'''Creates a temporary channel, then clones it with GPG key location, then deletes temp channel'''
+	'''Creates a temporary channel, then clones it with GPG key location, then deletes tmp channel'''
 	# I'm doing this because just creating a channel does not currently support assigning it a GPG key.
 	# Also, each channel can only have one GPG key
 	if PLATFORM_INDEPENDENT in label:
@@ -330,14 +330,14 @@ def create_channel(key, label, channels, name, summary, arch, parent):
 		raise
 	try:
 		if options.verbose: print timestamp(), "+ Cloning temporary channel into real channel:", label
-		if options.debug: print timestamp(), "+  Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
+		if options.debug: print timestamp(), "DEBUG: Running: client.channel.software.clone(", key, label + '-tmp', channel_map, True, ")"
 		client.channel.software.clone(key, label + '-tmp', channel_map, True)
 	except:
 		print timestamp(), "! Error cloning channel:", label
 		raise
 	try:
 		if options.verbose: print timestamp(), "+ Deleting temporary channel:", label + '-tmp'
-		if options.debug: print timestamp(), "+ Running: client.channel.software.delete(", key, label + '-tmp', ")"
+		if options.debug: print timestamp(), "DEBUG: Running: client.channel.software.delete(", key, label + '-tmp', ")"
 		client.channel.software.delete(key, label + '-tmp')
 	except:
 		print timestamp(), "! Error deleting channel:", label + '-tmp'
@@ -351,10 +351,10 @@ def delete_channel(key, label):
 		if options.debug: print timestamp(), "DEBUG: All packages for %s: %s" % (label, packages)
 		for package in packages:
 			if options.verbose: print timestamp(), "+ Removing package: %s:%i from %s" % (package['name'], package['id'], label)
-			if options.debug: print timestamp(), "DEBUG: package petails:", client.packages.get_details(key, package['id'])
+			if options.debug: print timestamp(), "DEBUG: package details:", client.packages.get_details(key, package['id'])
 			packages_to_remove.append(int(package['id']))
 		if not client.channel.software.remove_packages(key, label, packages_to_remove):
-			if options.verbose: print timestamp(), "Warning: Unable to delete the following packages:", pacakges_to_remove
+			if options.verbose: print timestamp(), "Warning: Unable to delete the following packages:", packages_to_remove
 	if options.verbose: print timestamp(), "+ Deleting channel:", label
 	return client.channel.software.delete(key, label)
 
@@ -753,7 +753,6 @@ def main():
 			current_channel_labels.append(channel['label'])
 		if options.verbose: print timestamp(), "Info: Channels on current server:", current_channel_labels
 		if client.api.get_version() < 5.1:
-			# TODO: Haven't tested with Spacewalk, not sure how it is reported
 			print timestamp(), "! This script uses features not available with Satellite versions older than 5.1"
 			sys.exit(1)
 	if not options.delete:

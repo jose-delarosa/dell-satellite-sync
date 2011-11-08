@@ -101,6 +101,6 @@ Run client-side actions only, prompt for password, and display verbose output:
 
 Known Issues
 ------------
-* Currently the --force option is required when initially uploading packages from the Dell repo to the Satellite/Spacewalk server.  This is because some of the Dell rpms have the same name and version, but different checksums.  This will be corrected on the Dell repositories in the future.
+* Currently the --force option is required when initially uploading packages from the Dell repo to the Satellite/Spacewalk server.  This is because some of the Dell rpms have the same name and version, but different checksums.
 
-* Due to BZ # 530598 the Dell GPG keys are installed using a remote action.  This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.  In the future this step will be removed, as Satellite should automatically install the key upon initial package install.
+* Due to BZ # 530598 the Dell GPG keys are installed using a remote action.  This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.

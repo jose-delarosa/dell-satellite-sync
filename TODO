@@ -3,7 +3,6 @@
 * Add check for rhnpush unless --no-packages or --client-actions-only specified
 * Test with Satellite 5.1
 * Test with Satellite 5.2
-* Test with Spacewalk (all versions)
 * Run from RHEL 4
 * Add --auto option for scanning environment to see what Dell systems there are
-* Add logging optoins
+* Add logging options

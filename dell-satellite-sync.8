@@ -1,7 +1,7 @@
-.TH "dell-satellite-sync" "8" "10 November 2009" "Version 0.4.2" ""
+.TH "dell-satellite-sync" "8" "9 November 2011" "Version 0.4.4" ""
 
 .SH NAME
-dell-satellite-sync \- synchronizes Dell linux repositories into an RHN Satellite or Spacewalk server, and subscribes Dell systems to the correct channels.
+dell-satellite-sync \- synchronizes Dell Linux repositories into an RHN Satellite or Spacewalk server, and subscribes Dell systems to the correct channels.
 
 .SH SYNOPSIS
 
@@ -33,6 +33,8 @@ dell-satellite-sync \- synchronizes Dell linux repositories into an RHN Satellit
  [ \fB-4\fR ] [ \fB--rhel4-only\fR ]
 
  [ \fB-5\fR ] [ \fB--rhel5-only\fR ]
+
+ [ \fB-6\fR ] [ \fB--rhel6-only\fR ]
 
  [ \fB-d\fR ] [ \fB--delete\fR ]
 
@@ -136,10 +138,13 @@ Print extra information.
 .SS "SERVER-ACTIONS OPTIONS"
 .TP
 \fB-4, --rhel4-only\fR
-Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or \fB--rhel5-only\fR is required, see \fBBUGS\fR for more detail)
+Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or \fB--rhel4-only\fR is required, see \fBBUGS\fR for more detail)
 .TP
 \fB-5, --rhel5-only\fR
-Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or \fB--rhel4-only is required\fR, see \fBBUGS\fR for more detail)
+Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or \fB--rhel5-only is required\fR, see \fBBUGS\fR for more detail)
+.TP
+\fB-6, --rhel6-only\fR
+Only work under Red Hat Enterprise Linux 6 base channels (as of version 0.4, either this or \fB--rhel6-only is required\fR, see \fBBUGS\fR for more detail)
 .TP
 \fB-d, --delete\fR
 Delete all Dell child channels and packages.  Packages can be left on the server with \fB--no-packages\fR.
@@ -230,7 +235,7 @@ o Currently the \fB--force\fR option is required when initially uploading packag
 
 o If using the \fB--only-systems\fR option, you may notice several broken links starting with system.ven_0x1028.dev in the local repository. You an safely delete or ignore these.
 
-o Due to BZ #530598 the Dell GPG keys are installed using a remote action. This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported. In the future this step will be removed, as RHN Satellite/Spacewalk should automatically install the key upon an initial package install. 
+o Due to BZ #530598 the Dell GPG keys are installed using a remote action. This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.
 
 .SH "SEE ALSO"
 
