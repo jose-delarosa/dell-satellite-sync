@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 0.4.4
+Version: 0.4.5
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -13,8 +13,9 @@ ExcludeArch: s390 s390x ppc64
 
 %description
 dell-satellite-sync is a solution for taking Dell's official Linux software 
-repositories, replicating them into an RHN Satellite or Spacewalk server,
-and subscribing any registered Dell systems to the correct child channel.
+repositories, replicating them into an RHN Satellite or Spacewalk server
+(including Novell's SUSE Manager), and subscribing any registered Dell systems
+to the correct child channel.
 
 %prep
 %setup -q
@@ -46,7 +47,9 @@ rm -rf %{buildroot}
 %doc README LICENSE TODO
 
 %changelog
-* Tue Nov 8 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.4
+* Wed Nov 30 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.5-1
+- Added support for SUSE Manager 1.2
+* Tue Nov 8 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.4-1
 - Tested with Spacewalk 1.5 and fixed some typos
 * Wed Nov 10 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.3-1
 - Expanded man page with synopsis, examples, bugs

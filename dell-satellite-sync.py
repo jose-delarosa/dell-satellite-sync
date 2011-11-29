@@ -37,7 +37,7 @@ GPG_URL='http://%s/' % DELL_REPO_URL
 SYSTEM_VENDOR_ID = 'system.ven_0x1028'
 PLATFORM_INDEPENDENT = 'platform_independent'		# Subdir of repo that contains platform agnostic rpms
 DELL_INFO = { 
-	# Careful with the label and name values, they are appended to system ids + base_channel names, and cannot exeed 64 characters
+	# Careful with the label and name values, they are appended to system ids + base_channel names, and cannot exceed 64 characters
 	'label' : 'dell-om',
 	'name' : 'Dell OM',
 	'summary' : 'Dell OpenManage Software' 
@@ -52,6 +52,7 @@ SUPPORTED_CHANNELS = {
 	'rhel-x86_64-server-5' :  { 'arch' : 'x86_64' , 'subdir' : 'rh50_64' },
 	'rhel-i386-server-6' :  { 'arch' : 'i386' , 'subdir' : 'rh60' },
 	'rhel-x86_64-server-6' :  { 'arch' : 'x86_64' , 'subdir' : 'rh60_64' },
+	'sles11-sp1-pool-x86_64' :  { 'arch' : 'x86_64' , 'subdir' : 'suse11_64' },
 }
 
 # Add channels that share arch and Dell repo subdir to the respective list
@@ -61,6 +62,7 @@ RHEL5_i386_ALTS = ['rhel-i386-server-5.0.z','rhel-i386-server-5.1.z','rhel-i386-
 RHEL5_x86_64_ALTS = ['rhel-x86_64-server-5.0.z','rhel-x86_64-server-5.1.z','rhel-x86_64-server-5.2.z','rhel-x86_64-server-5.3.ll','rhel-x86_64-server-5.3.z','rhel-x86_64-server-5.4.z','rhel-x86_64-server-5.6.z']
 RHEL6_i386_ALTS = []
 RHEL6_x86_64_ALTS = []
+SLES11_x86_64_ALTS = []
 
 ###################################################################################
 
@@ -84,7 +86,7 @@ parser.add_option("-f", "--force", action="store_true", dest="force", help="Forc
 parser.add_option("-a", "--all", action="store_true", dest="subscribe_all", help="Subscribe all systems, whether Dell vendor or not.", default=False)
 parser.add_option("-g", "--gpg-url", dest="gpg_url", help="URL where the GPG keys are located (should be accessible by clients.  e.g. http://satserver.example.com/pub/).", default=GPG_URL)
 parser.add_option("--no-rsync", action="store_true", dest="no_rsync", help="Skip rsync (local repo must already be present)", default=False)
-parser.add_option("-r", "--repository", dest="repo", help="Repository to sync from, defaults to latest e.g. 'linux.dell.com/repo/hardware/OMSA_6.1'", default=DELL_REPO_URL)
+parser.add_option("-r", "--repo", dest="repo", help="Repository to sync from, defaults to latest e.g. 'http://linux.dell.com/repo/hardware/OMSA_6.5.1'", default=DELL_REPO_URL)
 parser.add_option("-o", "--only-systems", dest="only_systems", help="Only create child channels for these systems.  e.g. -o per900,pe1800,pet610", default=ONLY_SYSTEMS)
 parser.add_option("--no-packages", action="store_true", dest="no_packages", help="Skip uploading packages", default=False)
 parser.add_option("-S", "--server-actions-only", action="store_true", dest="server_actions_only", help="Only create channels and upload rpms, skip client subscription", default=False)
@@ -93,6 +95,7 @@ parser.add_option("-c", "--client-mode", action="store_true", dest="client_mode"
 parser.add_option("-6", "--rhel6-only", action="store_true", dest="rhel6_only", help="Only work with RHEL 6 base channels", default=False)
 parser.add_option("-5", "--rhel5-only", action="store_true", dest="rhel5_only", help="Only work with RHEL 5 base channels", default=False)
 parser.add_option("-4", "--rhel4-only", action="store_true", dest="rhel4_only", help="Only work with RHEL 4 base channels", default=False)
+parser.add_option("--sles11sp1-only", action="store_true", dest="sles11sp1_only", help="Only work with SLES 11 SP1 base channels", default=False)
 parser.add_option("-D", "--demo", action="store_true", dest="demo", help="Enable demo mode (simulation only, does not connect to a Satellite server)", default=False)
 parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="Enable verbose output", default=False)
 parser.add_option("--debug", action="store_true", dest="debug", default=False, help="Enable lots of debug output (more than verbose)")
@@ -107,8 +110,8 @@ def timestamp():
 options.repo = options.repo.split('http://')[-1]	# Strip any http:// prefixes
 GPG_URL='http://%s' % options.repo
 error = False
-if not (options.delete or (options.rhel5_only or options.rhel4_only or options.rhel6_only)):
-	print timestamp(), "! Error: 'Must specify either '--rhel6-only' or '--rhel5-only' or '--rhel4-only' for version 0.4 or earlier."
+if not (options.delete or (options.rhel5_only or options.rhel4_only or options.rhel6_only or options.sles11sp1_only)):
+	print timestamp(), "! Error: 'Must specify either '--sles11sp1-only' or '--rhel6-only' or '--rhel5-only' or '--rhel4-only'."
 	error = True
 if options.server_actions_only and options.client_actions_only:
 	print timestamp(), "! Error: '--server-actions-only' and '--client-actions-only' are mutually exclusive"
@@ -152,8 +155,10 @@ else:
 		options.password = getpass.getpass()
 
 # Clone details on base channels - moved here to make choices based on options
-# RHEL 6 i386 channels
-if not options.rhel6_only and not options.rhel5_only and not options.rhel4_only:
+if not options.rhel6_only and not options.rhel5_only and not options.rhel4_only and not options.sles11sp1_only:
+	# SLES 11 x86_64 channels
+	for version in SLES11_x86_64_ALTS:
+		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['sles11-sp1-pool-x86_64']
 	# RHEL 6 i386 channels
 	for version in RHEL6_i386_ALTS:
 		SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-i386-server-6']
@@ -173,25 +178,39 @@ if not options.rhel6_only and not options.rhel5_only and not options.rhel4_only:
         for version in RHEL4_x86_64_ALTS:
                 SUPPORTED_CHANNELS[version] = SUPPORTED_CHANNELS['rhel-x86_64-as-4']
 
+# SLES 11 channels
+if options.sles11sp1_only:
+                # Remove base channels that are not SLES 11 here
+                del SUPPORTED_CHANNELS['rhel-i386-as-4']
+                del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
+                del SUPPORTED_CHANNELS['rhel-i386-server-5']
+                del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
+		del SUPPORTED_CHANNELS['rhel-i386-server-6']
+		del SUPPORTED_CHANNELS['rhel-x86_64-server-6']
+
+# RHEL 6 channels
 if options.rhel6_only:
                 # Remove base channels that are not RHEL 6 here
+                del SUPPORTED_CHANNELS['sles11-sp1-pool-x86_64']
                 del SUPPORTED_CHANNELS['rhel-i386-server-5']
                 del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
                 del SUPPORTED_CHANNELS['rhel-i386-as-4']
                 del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
 
-# RHEL 5 i386 channels
+# RHEL 5 channels
 if options.rhel5_only:
 		# Remove base channels that are not RHEL 5 here
+                del SUPPORTED_CHANNELS['sles11-sp1-pool-x86_64']
 		del SUPPORTED_CHANNELS['rhel-i386-as-4']
 		del SUPPORTED_CHANNELS['rhel-x86_64-as-4']
 		del SUPPORTED_CHANNELS['rhel-i386-server-6']
 		del SUPPORTED_CHANNELS['rhel-x86_64-server-6']
 	
 
-# RHEL 4 i386 channels
+# RHEL 4 channels
 if options.rhel4_only:
 		# Remove base channels that are not RHEL 4 here
+                del SUPPORTED_CHANNELS['sles11-sp1-pool-x86_64']
 		del SUPPORTED_CHANNELS['rhel-i386-server-5']
 		del SUPPORTED_CHANNELS['rhel-x86_64-server-5']
 		del SUPPORTED_CHANNELS['rhel-i386-server-6']

@@ -1,4 +1,4 @@
-.TH "dell-satellite-sync" "8" "9 November 2011" "Version 0.4.4" ""
+.TH "dell-satellite-sync" "8" "30 November 2011" "Version 0.4.5" ""
 
 .SH NAME
 dell-satellite-sync \- synchronizes Dell Linux repositories into an RHN Satellite or Spacewalk server, and subscribes Dell systems to the correct channels.
@@ -36,6 +36,8 @@ dell-satellite-sync \- synchronizes Dell Linux repositories into an RHN Satellit
 
  [ \fB-6\fR ] [ \fB--rhel6-only\fR ]
 
+ [ \fB--sles11sp1-only\fR ]
+
  [ \fB-d\fR ] [ \fB--delete\fR ]
 
  [ \fB-f\fR ] [ \fB--force\fR ]
@@ -61,7 +63,7 @@ dell-satellite-sync \- synchronizes Dell Linux repositories into an RHN Satellit
 .fi
 .SH DESCRIPTION
 .PP
-The Dell Satellite Sync tool (\fBdell-satellite-sync\fR) will synchronize the Dell official Linux software repositories into an RHN Satellite or Spacewalk server, and subscribe any registered systems that have a Dell vendor id to the correct child channel.
+The Dell Satellite Sync tool (\fBdell-satellite-sync\fR) will synchronize the Dell official Linux software repositories into an RHN Satellite or Spacewalk server (including Novell's SUSE Manager, which is based on Spacewalk), and subscribe any registered systems that have a Dell vendor id to the correct child channel.
 
 By default, two sets of actions are performed: \fBserver actions\fR and \fBclient actions\fR
 
@@ -71,7 +73,7 @@ The following steps are performed during this phase:
 
 1. \fIrsync\fR is used to obtain a copy of the Dell official Linux repositories.  The default URL for this is \fBlinux.dell.com/repo/hardware/latest/\fR - this can be changed with the \fB--repo\fR option as needed.  If a local copy of the repositories already exists, this can be skipped with \fB--no-rsync\fR.
 
-2. Child channels are created representing each Dell hardware system for any base channels found on the server.  The current Dell repositories contain 49 hardware systems.  Supported base channels are Red Hat Enterprise Linux version 4 and 5, both i386 and x86_64, and any derivative of these (e.g. z-stream, long life).  To reduce the number of child channels created, specify the types of systems you would like managed with the \fB--only-systems\fR option.
+2. Child channels are created representing each Dell hardware system for any base channels found on the server.  The current Dell repositories contain 49 hardware systems.  Supported base channels are Red Hat Enterprise Linux version 4, 5 and 6, both i386 and x86_64, and any derivative of these (e.g. z-stream, long life).  To reduce the number of child channels created, specify the types of systems you would like managed with the \fB--only-systems\fR option.
 
 3. An additional child channel is also created for each base channel that contains platform independent Dell software.
 
@@ -138,19 +140,22 @@ Print extra information.
 .SS "SERVER-ACTIONS OPTIONS"
 .TP
 \fB-4, --rhel4-only\fR
-Only work under Red Hat Enterprise Linux 4 base channels (as of version 0.4, either this or \fB--rhel4-only\fR is required, see \fBBUGS\fR for more detail)
+Only work under Red Hat Enterprise Linux 4 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
 .TP
 \fB-5, --rhel5-only\fR
-Only work under Red Hat Enterprise Linux 5 base channels (as of version 0.4, either this or \fB--rhel5-only is required\fR, see \fBBUGS\fR for more detail)
+Only work under Red Hat Enterprise Linux 5 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
 .TP
 \fB-6, --rhel6-only\fR
-Only work under Red Hat Enterprise Linux 6 base channels (as of version 0.4, either this or \fB--rhel6-only is required\fR, see \fBBUGS\fR for more detail)
+Only work under Red Hat Enterprise Linux 6 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
+.TP
+\fB--sles11sp1-only\fR
+Only work under Novell SuSE Linux Enterprise Server 11 SP1 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
 .TP
 \fB-d, --delete\fR
 Delete all Dell child channels and packages.  Packages can be left on the server with \fB--no-packages\fR.
 .TP
 \fB-f, --force\fR
-Force package upload via \fIrhnpush\fR (required for version 0.4, see \fBBUGS\fR for more detail)
+Force package upload via \fIrhnpush\fR (required, see \fBBUGS\fR for more detail)
 .TP
 \fB-l\fIDIRECTORY\fB, --localdir=\fIDIRECTORY\fB\fR
 Local directory to hold a copy of the Dell repositories.  This option is also needed when specifying \fB--delete\fR, since the channel list is built from this directory tree (required).
@@ -231,11 +236,13 @@ o Deleting Dell repository child channels from the server, but leaving the rpms 
 
 .SH BUGS
 
-o Currently the \fB--force\fR option is required when initially uploading packages from the Dell repository to the RHN Satellite/Spacewalk server. This is because some of the Dell rpm headers are not distinguishing themselves properly between RHEL 4 and RHEL 5, so they appear to Satellite to be the same, when in fact they are not.  This also requires either \fB--rhel4-only\fR or \fB--rhel5-only\fR, since the rpms for one distribution may be overwritten by the other, thereby causing dependency errors (e.g. if the RHEL 5 rpms are uploaded first, then the RHEL 4 rpms overwrite them, when a RHEL 5 system tries to install one of these rpms, it contains dependencies for RHEL 4, which the RHEL 5 system cannot resolve).  Dell will correct this issue soon.
+o Currently the \fB--force\fR option is required when initially uploading packages from the Dell repository to the RHN Satellite/Spacewalk server. This is because some of the Dell rpm headers are not distinguishing themselves properly between RHEL releases, so they appear to Satellite to be the same, when in fact they are not.  This also requires either \fB--rhel4-only\fR, \fB--rhel5-only\fR, \fB--rhel6-only\fR or \fB--sles11sp1-only\fR, since the rpms for one distribution may be overwritten by the other, thereby causing dependency errors (e.g. if the RHEL 5 rpms are uploaded first, then the RHEL 4 rpms overwrite them, when a RHEL 5 system tries to install one of these rpms, it contains dependencies for RHEL 4, which the RHEL 5 system cannot resolve).
 
 o If using the \fB--only-systems\fR option, you may notice several broken links starting with system.ven_0x1028.dev in the local repository. You an safely delete or ignore these.
 
 o Due to BZ #530598 the Dell GPG keys are installed using a remote action. This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.
+
+o With SUSE Manager 1.2, an "unhandled internal exception" traceback error is thrown out when adding Dell software repos as child channels. The error (which has been fixed in newer versions of Spacewalk) causes the script to quit, which requires the script to be run again. Unfortunately the error is produced for EACH Dell repo channel that is added. Until SUSE Manager is updated, the only workaround is to re-run the script for each Dell repo channel that is added. When done, you will see a temporary empty child channel for each Dell repo added, which can be safely removed.
 
 .SH "SEE ALSO"
 
@@ -251,3 +258,6 @@ rhnpush(8)
 
 .SH AUTHOR
 Vinny Valdez <vvaldez@redhat.com>
+
+.SH REPORTING BUGS
+Report bugs to <linux-poweredge@dell.com>.
