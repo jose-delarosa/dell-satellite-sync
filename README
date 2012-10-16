@@ -1,2 +1,174 @@
-For the most current information, see:
-https://fedorahosted.org/dell-satellite-sync/
+ Introduction 
+ ============
+
+ Dell-satellite-sync is a tool for taking the Dell OpenManage yum repositories,
+ importing them into channels in an RHN Satellite or Spacewalk server, and
+ subscribing registered Dell systems to the correct channels. It uses native
+ APIs, so it can be run by non-root users as long as valid RHN login credentials
+ are provided.
+
+ For additional information and downloads, visit
+ http://linux.dell.com/dell-satellite-sync.
+
+ For more information about the Dell OpenManage repositories, visit
+ http://linux.dell.com/repo/hardware
+
+ Overview                                                                     |
+ ========
+
+ The functionality of dell-satellite-sync is divided into two parts: server
+ actions and client actions.
+
+ i. Server actions
+
+ For each existing OS base channel in your RHN server (i.e. RHEL 5 i386,
+ RHEL 6 x86_64), dell-satellite-sync creates child channels that correspond to
+ the repository for each Dell system and the "platform_independent" repository.
+
+ - The "platform_independent" repository is not specific to any Dell server,
+   it contains the main OpenManage packages and has an average of about 1200
+   packages (per OS release & arch).
+
+ - System-specific repositories contain driver and firmware packages that are
+   specific to each server, and each repository contains 10-15 packages (per OS
+   release and arch). Some contain as few as 2.
+
+ Dell-satellite-sync uses system IDs (4-character hex string) to create labels 
+ for server-specific child channels. For example, the label for the RHEL 6
+ child channel for the Dell PowerEdge R515 server is the somewhat cryptic
+ 'dell-om-system.ven_0x1028.dev_0x0489-rhel-x86_64-server-6', but you shouldn't
+ have to deal with channel labels at all. On the other hand, channel names
+ (which are more commonly used) have more descriptive names such as
+ "Dell OM on per515 for rhel-x86_64-server-6".
+
+ The file /etc/sysconfig/dell-system-ids contains a mapping of server names to
+ system IDs that are used to label OM child channels. This list was last updated
+ on Oct 10, 2012. If you have a 12G PowerEdge server that started shipping after
+ this date, check for the latest updated file in
+ http://linux.dell.com/dell-satellite-sync, otherwise dell-satellite-sync will
+ not be able to import the system-specific channel for your server.
+
+ Dell-satellite-sync uses by default the yum repositories located in
+ http://linux.dell.com/repo/hardware/latest, but you can use any mirror as
+ desired.
+
+ ii. Client actions
+
+ When executing client actions, dell-satellite-sync queries the RHN database
+ for all subscribed systems and attempts to register them to the
+ "platform_independent" channel as well as their specific system channel.
+
+ For each registered system, it performs the following actions:
+
+ a. Installs the repositories' GPG keys, required for installing its packages.
+ b. Installs the 'smbios-utils' package & extracts the system ID.
+ c. Subscribes the system to the correct channels.
+
+ It is HIGHLY recommended that registered systems have the osad daemon installed
+ and running (install the 'osad' RPM). This will allow remote actions on the
+ systems to be executed very quickly. Otherwise, dell-satellite-sync will not
+ be able to report back if the remote actions completed successfully since it
+ will timeout after about 2 hours of waiting (systems check-in on their own
+ every 4 hours). If you are using a firewall, be sure open port 5222/tcp on
+ both the satellite server and the registered system.
+
+ On systems that were just recently registered to RHN (even with osad running),
+ it's possible that some of the remote actions on systems could fail since they
+ have not done an initial check-in. If this is the case, re-run it a few minutes
+ later.
+
+ CLIENT ACTIONS ARE OPTIONAL. You can always perform these steps on each
+ registered system individually, but you can save *lots* of time especially if
+ you have a large number of registered clients. As you can see from the last
+ paragraphs above, there are some manual steps that you still need to perform
+ on registered systems prior to executing client actions, but hopefully that's
+ something that you have already done.
+
+ Installation
+ ============
+
+ To install, simply install the pre-compiled RPM or build an RPM from source by
+ simply running the 'mk_rpm.sh' script. Make sure you have the 'rpm-build'
+ package installed.
+
+ Getting Involved
+ ================
+
+ Read-only access to the git tree is available at:
+
+ $ git clone http://linux.dell.com/git/dell-satellite-sync.git
+
+ For further development queries or if you'd like to make code contributions,
+ please send an email to the mailing list linux-poweredge@dell.com.
+
+ Future Enhancements
+ ===================
+
+ * Better handling in case when being a proxy server and remote proxy can't be
+   reached. A timeout would be nice.
+ * Sign RPM.
+ * Add --auto option to scan environment to see what Dell systems there are in
+   the network.
+ * Add logging options.
+
+ Author
+ ======
+
+ * This tool was written by Vinny Valdez <vvaldez@redhat.com>
+ * Updates by Jose De la Rosa <jose_de_la_rosa@dell.com>, Scott Collier
+   and Brian Collins <brianc@sedata.com>
+
+ History
+ =======
+
+ * Tue Oct 16 2012 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.0-1
+ - Major clean up for simpler use
+ - Added configuration files in /etc/sysconfig/dell-satellite-sync/
+ - Replaced rhnpush with API calls to create RHN repo & associate to channel.
+ - Removed requirement to copy all repositories to a local directory.
+ - It no longer imports all system-specific repositories by default.
+ - Added --channel option to specify the OS parent channel to use.
+ - Removed rsync option since its functionality is better suited separately.
+ - Removed --all option since now only Dell systems can be subscribed.
+ - Removed --gpg-url option since GPG keys are now imported from same place as
+   the repo location.
+ - Removed --force option since I no longer use rhnpush to upload packages to
+   the RHN server.
+ - The --delete option removes all unused RHN repositories and channels
+
+ * Wed Nov 30 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.5-1
+ - Added support for SUSE Manager 1.2
+
+ * Tue Nov 8 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.4-1
+ - Tested with Spacewalk 1.5 and fixed some typos
+
+ * Wed Nov 10 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.3-1
+ - Expanded man page with synopsis, examples, bugs
+
+ * Sun Nov 8 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
+ - created the man page
+
+ * Wed Nov 7 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.1-1
+ - Fixed timeout values from 0.4, which were not sane
+ - Added abort but report success/failed clients if Ctrl+c or 2 hour timeout
+ - Fixed some output on client result waiting to clean it up
+
+ * Wed Nov 5 2009 Vinny Valdez <vvaldez@redhat.com> 0.4-1
+ - Added options "--rhel5-only" and "--rhel4-only" to work around a bug in some
+   of the Dell rpms that are being treated as the same in Satellite
+ - Added option "--only-systems" that accepts a comma separated list of systems
+   to rsync and create child channels for
+ - Added package removal from Satellite in the channels with --delete now
+ - Added --exclude-from list if --only-systems is specified
+ - Added --repo to specify a specific repo to pull from
+ - Added timestamps to output
+ - Fixed bug with --debug mode in version 0.3
+
+ * Tue Oct 30 2009 Vinny Valdez <vvaldez@redhat.com> 0.3-1
+ - Cleaned up some output on the client side actions
+ - Added "raise" statement if using debug in some cases
+ - Added summary of client actions at end of process
+ - Added try/except on importing modules
+
+ * Tue Oct 27 2009 Vinny Valdez <vvaldez@redhat.com> 0.2-1
+ - Initial package created from version 0.2 of the source script

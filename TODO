@@ -1,5 +1,0 @@
-* Create config file at /etc/sysconfig/dell-satellite-sync
-* sign rpm
-* Add check for rhnpush unless --no-packages or --client-actions-only specified
-* Add --auto option for scanning environment to see what Dell systems there are
-* Add logging options

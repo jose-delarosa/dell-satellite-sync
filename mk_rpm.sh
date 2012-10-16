@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILE_LIST="dell-satellite-sync.py LICENSE README TODO dell-satellite-sync.8"
+FILE_LIST="dell-system-ids dell-satellite-sync.conf dell-satellite-sync.py EXAMPLES LICENSE README dell-satellite-sync.8"
 PACKAGE_NAME=dell-satellite-sync
 
 VERSION=$(grep "^Version:" dell-satellite-sync.spec | awk '{ print $2 }')
@@ -72,5 +72,7 @@ cp -fv $SPEC_FILE ~/src/redhat/SPECS/
 [ "$?" = "0" ] || exit 1
 
 echo "Building rpms and source rpms"
-rpmbuild -ba ~/src/redhat/SPECS/$SPEC_FILE
+rpmbuild -ba --define "_source_filedigest_algorithm 0" \
+             --define "_binary_filedigest_algorithm 0" \
+             ~/src/redhat/SPECS/$SPEC_FILE
 [ "$?" = "0" ] || exit 1

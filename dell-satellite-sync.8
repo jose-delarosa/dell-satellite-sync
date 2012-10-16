@@ -1,263 +1,84 @@
-.TH "dell-satellite-sync" "8" "30 November 2011" "Version 0.4.5" ""
+.TH "dell-satellite-sync" "8" "10 October 2012" "Version 1.0.0" ""
 
 .SH NAME
-dell-satellite-sync \- synchronizes Dell Linux repositories into an RHN Satellite or Spacewalk server, and subscribes Dell systems to the correct channels.
+dell-satellite-sync - Import Dell official yum repositories into Satellite or Spacewalk server.
 
 .SH SYNOPSIS
-
 .nf
+\fBdell-satellite-sync\fR [ --server-actions-only | --client-actions-only ] [ options ] 
 
-\fBdell-satellite-sync\fR [ \fBoptions \fI\&...\fB\fR ] 
-
-.SS "COMMON OPTIONS"
- [ \fB-D\fR ] [ \fB--demo\fR ]
-
- [ \fB-g\fIURL\fB\fR ] [ \fB--gpg-url=\fIURL\fB\fR ]
-
- [ \fB-h\fR ] [ \fB--help\fR ]
-
- [ \fB-o\fILIST_OF_SYSTEMS\fB\fR ] [ \fB--only-systems=\fILIST_OF_SYSTEMS\fB\fR ]
-
- [ \fB-p\fIPASSWORD\fB\fR ] [ \fB--password=\fIPASSWORD\fB\fR ]
-
- [ \fB-r\fIREPOSITORY\fB\fR ] [ \fB--repo=\fIREPOSITORY\fB\fR ]
-
- [ \fB-s\fIHOSTNAME\fB\fR ] [ \fB--server=\fIHOSTNAME\fB\fR ]
-
- [ \fB-u\fIUSER\fB\fR ] [ \fB--user=\fIUSER\fB\fR ]
-
- [ \fB-v\fR ] [ \fB--verbose\fR ]
-
-.SS "SERVER-ACTION OPTIONS"
-
- [ \fB-4\fR ] [ \fB--rhel4-only\fR ]
-
- [ \fB-5\fR ] [ \fB--rhel5-only\fR ]
-
- [ \fB-6\fR ] [ \fB--rhel6-only\fR ]
-
- [ \fB--sles11sp1-only\fR ]
-
- [ \fB-d\fR ] [ \fB--delete\fR ]
-
- [ \fB-f\fR ] [ \fB--force\fR ]
-
- [ \fB-l\fIDIRECTORY\fB\fR ] [ \fB--localdir=\fIDIRECTORY\fB\fR ]
-
- [ \fB--no-packages\fR ]
-
- [ \fB--no-rsync\fR ]
-
- [ \fB-S\fR ] [ \fB--server-actions-only\fR ]
-
-
-.SS "CLIENT-ACTION OPTIONS"
- [ \fB-a\fR ] [ \fB--all\fR ]
-
- [ \fB-C\fR ] [ \fB--client-actions-only\fR ]
-
-.SS "DEBUGGING OPTIONS"
-
- [ \fB--debug\fR ]
-
-.fi
 .SH DESCRIPTION
 .PP
-The Dell Satellite Sync tool (\fBdell-satellite-sync\fR) will synchronize the Dell official Linux software repositories into an RHN Satellite or Spacewalk server (including Novell's SUSE Manager, which is based on Spacewalk), and subscribe any registered systems that have a Dell vendor id to the correct child channel.
+\fBdell-satellite-sync\fR is a tool for taking the Dell OpenManage yum repositories, importing them into channels in an RHN Satellite or Spacewalk server, and subscribing registered Dell systems to the correct channels. It uses native APIs, so it can be run by non-root users as long as valid RHN login credentials are provided.
 
-By default, two sets of actions are performed: \fBserver actions\fR and \fBclient actions\fR
-
-.SS "SERVER ACTIONS"
-.PP
-The following steps are performed during this phase:
-
-1. \fIrsync\fR is used to obtain a copy of the Dell official Linux repositories.  The default URL for this is \fBlinux.dell.com/repo/hardware/latest/\fR - this can be changed with the \fB--repo\fR option as needed.  If a local copy of the repositories already exists, this can be skipped with \fB--no-rsync\fR.
-
-2. Child channels are created representing each Dell hardware system for any base channels found on the server.  The current Dell repositories contain 49 hardware systems.  Supported base channels are Red Hat Enterprise Linux version 4, 5 and 6, both i386 and x86_64, and any derivative of these (e.g. z-stream, long life).  To reduce the number of child channels created, specify the types of systems you would like managed with the \fB--only-systems\fR option.
-
-3. An additional child channel is also created for each base channel that contains platform independent Dell software.
-
-4. Each child channel is populated with rpms from the corresponding local repository using \fIrhnpush\fR, which must be installed.  This dependency is not built into the rpm because the client-side actions do not require it, which can be run separately.
-
-.SS "CLIENT ACTIONS"
-The following steps are performed during this phase:
-
-1. A list of all registered systems is compiled and any without a Dell vendor id are skipped.  The remaining systems continue through these steps.  This behavior can be overriden with the \fB--all\fR option.
-
-2. Two GPG keys from Dell are installed via a remote action on each system. See the section \fBPRE-REQUISITES\fR for details on allowing remote actions.  By default the keys are obtained from the specified repository (default \fBhttp://linux.dell.com/repo/hardware/latest/\fR), but can be explicitly specified with \fB--gpg-url\fR.
-
-3. The systems are subscribed to the Dell platform independent child channel.
-
-4. The package \fIsmbios-utils\fR and dependencies are scheduled for remote install on each system.
-
-5. A remote action is run on each system to execute \fIsmbios-sys-info\fR.  This reports the BIOS hardware id of the system.  This information is used to subscribe the system to the correct child channel.
-
-.SS "PRE-REQUISITES
-For the server-side actions to complete, the \fIrhnpush\fR package must be installed on the system running \fBdell-satellite-sync\fR.
-
-For the client-side actions to complete, The following conditions must be met:
-
-o All registered systems must belong to their respective \fIrhn-tools\fR child channel.
-
-o The systmes must have the \fIprovisioning\fR entitlement.
-
-o The package \fIrhncfg-actions\fR must be installed.
-
-o Remote actions must be allowed by running the command "\fIrhn-actions-control --enable-run\fR" (this can be accomplished through an rpm and pushed to the clients, or by another means outside of RHN Satellite/Spacewalk).
-
-o The \fIosad\fR package should be installed and started on the clients.  This allows very quick execution of remote actions and package installs, rather than waiting for the default 2 hour check-in interval.
-
-.SH "OPTIONS"
 .SS "COMMON OPTIONS"
-.TP
-\fB-D, --demo\fR
-Run in simulation mode.  Does not connect to any servers or clients.
-.TP
-\fB-g\fIURL\fB, --gpg-url=\fIURL\fB\fR
-URL where GPG keys are available to he systems. If this option is not specified, first a default of \fBhttp://linux.dell.com/repo/hardware/latest/\fR is used, otherwise if \fB--repo\fR is specified, then that location will be used.
-.TP
-\fB-h, --help\fR
-Display list of options
-.TP
-\fB-o\fILIST_OF_SYSTEMS\fB, --only-systems=\fILIST_OF_SYSTEMS\fB\fR
-Only rsync and create child channels for systems in LIST_OF_SYSTEMS e.g. \fB--only-systems pe1800,per900\fR
-.TP
-\fB-p\fIPASSWORD\fB, --password=\fIPASSWORD\fB\fR
-Password for the user specified with \fB--user\fR.  If this option is not specified, it will be prompted for.
-.TP
-\fB-r\fIREPOSITORY\fB, --repo=\fIREPOSITORY\fB\fR
-Repository to call \fIrsync\fR against.  Also used to construct location of GPG keys, if \fB--gpg-url\fR is not specified.
-.TP
-\fB-s\fIHOSTNAME\fB, --server=\fIHOSTNAME\fB\fR
-Hostname of your RHN Satellite/Spacewalk server (required).
-.TP
-\fB-u\fIUSERNAME\fB, --user=\fIUSERNAME\fB\fR
-Username for RHN Satellite/Spacewalk (required).
-.TP
-\fB-v, --verbose\fR
-Print extra information.
+ \fB-h, --help\fR 
+ Print help message and exit.
 
-.SS "SERVER-ACTIONS OPTIONS"
-.TP
-\fB-4, --rhel4-only\fR
-Only work under Red Hat Enterprise Linux 4 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
-.TP
-\fB-5, --rhel5-only\fR
-Only work under Red Hat Enterprise Linux 5 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
-.TP
-\fB-6, --rhel6-only\fR
-Only work under Red Hat Enterprise Linux 6 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
-.TP
-\fB--sles11sp1-only\fR
-Only work under Novell SuSE Linux Enterprise Server 11 SP1 base channels (required to avoid issues with Dell rpm headers, see \fBBUGS\fR for more detail)
-.TP
-\fB-d, --delete\fR
-Delete all Dell child channels and packages.  Packages can be left on the server with \fB--no-packages\fR.
-.TP
-\fB-f, --force\fR
-Force package upload via \fIrhnpush\fR (required, see \fBBUGS\fR for more detail)
-.TP
-\fB-l\fIDIRECTORY\fB, --localdir=\fIDIRECTORY\fB\fR
-Local directory to hold a copy of the Dell repositories.  This option is also needed when specifying \fB--delete\fR, since the channel list is built from this directory tree (required).
-.TP
-\fB--no-packages\fR
-Do not push or delete any packages.
-.TP
-\fB--no-rsync\fR
-Do not call \fIrsync\fR to syncronize the Dell repositories.  A local copy must already exist at \fB--localdir\fR.
-.TP
-\fB-S, --server-actions-only\fR
-Only perform server-side actions, including calling \fIrsync\fR, creating child channels, and uploading rpms via \fIrhnpush\fR.
+ \fB-u \fIUSER\fB --user=\fIUSER\fB\fR
+ Satellite username.
 
-.SS "CLIENT-ACTIONS OPTIONS"
-.TP
-\fB-a, --all\fR
-Perform client actions on all systems, regardless of vendor id.  This will subscribe all systems to the Dell platform independent software channel, and attempt to determine the BIOS hardware id.  Note that a matching child channel may not exist if it is not a Dell system.
-.TP
-\fB-C, --client-actions-only\fR
-Only perform client-side actions, including scheduling remote actions, installing package, and subscribing systems.  Channels and rpms must already be on the server.
+ \fB-p \fIPASSWORD\fB, --password=\fIPASSWORD\fB\fR
+ Satellite password.
 
-.SS "DEBUGGING OPTIONS"
-.TP
-\fB--debug\fR
-Print lots of extra and ugly (but potentially useful) output.
+ \fB-s \fISATSERVER\fB, --satserver=\fISATSERVER\fB\fR
+ FQDN of Satellite server.
 
-.SS "FUTURE OPTIONS"
-.TP
-\fB--auto\fR
-Automatically determine what types of Dell systems are registered with RHN Satellite/Spacewalk, and rsync/create child channels for only those types. This is essentially internally invoking \fB--only-systems\fR for registered systems (not implemented yet).
-.TP
-\fB-C, --client-mode\fR
-Runs client actions from a client.  Use this to avoid using remote actions, and supply the authentication client-side instead. (not implemented yet).
+ \fB-v, --verbose\fR
+ Enable verbose output.
 
-.RE
+ \fB-D, --debug\fR
+ Print lots of extra and ugly (but potentially useful) output.
+
+.SS "SERVER-ACTION OPTIONS"
+ \fB-S, --server-actions-only\fR
+ Create channels and upload RPMs, skip system subscriptions.
+
+ \fB-r \fIREPOSITORY\fB, --repo=\fIREPOSITORY\fB\fR
+ Location of Dell yum repositories. Defaults to \fIhttp://linux.dell.com/repo/hardware/latest\fB.
+
+ \fB-c \fICHANNEL\fB, --channel=\fICHANNEL\fB\fR
+ OS parent channel to use. e.g. \fIrhel4\fB, \fIrhel5\fB, \fIrhel6\fB or \fIsles11\fB.
+
+ \fB-o \fILIST_OF_SYSTEMS\fB, --only-systems=\fILIST_OF_SYSTEMS\fB\fR
+ Only create child channels for these systems. e.g. -o per720,per620,pet620
+
+ \fB-a, --all-systems\fR
+ Create system-specific channels for ALL supported Dell systems.
+
+ \fB-d, --delete\fR
+ Delete all unused Dell channels and its packages.
+
+.SS "CLIENT-ACTION OPTIONS"
+ \fB-C, --client-actions-only\fR
+ Subscribe systems to corresponding child channels.
+
+.fi
+.SH OVERVIEW
+.PP
+For an overview, see \fB/usr/share/doc/dell-satellite-sync-<version>/README\fR
 
 .SH "EXAMPLES"
-
-o Setting up a server with the \fIlatest_quarterly\fR repositories, for only \fIPER900\fR and \fIPER805\fR systems:
-.br
-\fB$ dell-satellite-sync --server satserver.example.com \\ \fR
-.br
-     \fB--user satadmin \\ \fR
-.br
-     \fB--localdir /home/vinny/dell-repo/ \\ \fR
-.br
-     \fB--repo http://linux.dell.com/repo/hardware/latest_quarterly/ \\ \fR
-.br
-     \fB--rhel5-only \\ \fR
-.br
-     \fB--force \\ \fR
-.br
-     \fB--only-systems per900,per805\fR
-
-o Subscribe any new systems that have been added to RHN Satellite/Spacewalk:
-.br
-\fB$ dell-satellite-sync --server satserver.example.com \\ \fR
-.br
-     \fB--user satadmin \\ \fR
-.br
-     \fB--localdir /home/vinny/dell-repo/ \\ \fR
-.br
-     \fB--client-actions-only \\ \fR
-.br
-     \fB--password my_password\fR
-
-o Deleting Dell repository child channels from the server, but leaving the rpms in the database:
-.br
-\fB$ dell-satellite-sync --server satserver.example.com \\ \fR
-.br
-     \fB--user satadmin \\ \fR
-.br
-     \fB--localdir /home/vinny/dell-repo/ \\ \fR
-.br
-     \fB--delete \\ \fR
-.br
-     \fB--no-packages\fR
-
-.SH BUGS
-
-o Currently the \fB--force\fR option is required when initially uploading packages from the Dell repository to the RHN Satellite/Spacewalk server. This is because some of the Dell rpm headers are not distinguishing themselves properly between RHEL releases, so they appear to Satellite to be the same, when in fact they are not.  This also requires either \fB--rhel4-only\fR, \fB--rhel5-only\fR, \fB--rhel6-only\fR or \fB--sles11sp1-only\fR, since the rpms for one distribution may be overwritten by the other, thereby causing dependency errors (e.g. if the RHEL 5 rpms are uploaded first, then the RHEL 4 rpms overwrite them, when a RHEL 5 system tries to install one of these rpms, it contains dependencies for RHEL 4, which the RHEL 5 system cannot resolve).
-
-o If using the \fB--only-systems\fR option, you may notice several broken links starting with system.ven_0x1028.dev in the local repository. You an safely delete or ignore these.
-
-o Due to BZ #530598 the Dell GPG keys are installed using a remote action. This is because the keys are referenced using an http:// path, and as mentioned in the bug, they are not automatically imported.
-
-o With SUSE Manager 1.2, an "unhandled internal exception" traceback error is thrown out when adding Dell software repos as child channels. The error (which has been fixed in newer versions of Spacewalk) causes the script to quit, which requires the script to be run again. Unfortunately the error is produced for EACH Dell repo channel that is added. Until SUSE Manager is updated, the only workaround is to re-run the script for each Dell repo channel that is added. When done, you will see a temporary empty child channel for each Dell repo added, which can be safely removed.
-
-.SH "SEE ALSO"
-
-rsync(1)
-
-rhnpush(8)
+For usage examples, see \fB/usr/share/doc/dell-satellite-sync-<version>/EXAMPLES\fR
 
 .SH FILES
-
+.ta
+.nf
 /usr/bin/dell-satellite-sync
-
 /usr/share/dell-satellite-sync/dell-satellite-sync.py
+/etc/sysconfig/dell-satellite-sync/dell-satellite-sync.conf
+/etc/sysconfig/dell-satellite-sync/dell-system-ids
+.fi
 
 .SH AUTHOR
+.ta
+.nf
 Vinny Valdez <vvaldez@redhat.com>
+Jose De la Rosa <jose_de_la_rosa@dell.com>
+.fi
 
 .SH REPORTING BUGS
-Report bugs to <linux-poweredge@dell.com>.
+Report bugs to <linux-poweredge@dell.com>
+
+.SH SEE ALSO
+For additional information and code contributions, visit \fBhttp://linux.dell.com/dell-satellite-sync\fR.

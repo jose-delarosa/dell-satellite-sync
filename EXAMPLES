@@ -1,0 +1,198 @@
++------------------------------------------------------------------------------+
+| Examples                                                                     |
++------------------------------------------------------------------------------+
+
+1. Verify you meet the following requirements:
+
+   Server actions:
+
+   a) Disk space: In your RHN server, you will need about 12 GB of free disk
+      space for the latest version of the repositories (OMSA 7.x). Older
+      versions (OMSA 6.x) require about 6-7 GB each.
+   b) RHN credentials: The login ID of the RHN satellite server must have
+      permissions to create child channels under any base channels.
+
+   Client actions:
+
+   a) RHN credentials: The login ID of the RHN satellite server must have
+      permissions to schedule remote actions and register systems to channels.
+   b) The registered systems must be subscribed to the "RHN Tools for RHEL"
+      child channel and must have the 'Provisioning' entitlement.
+   d) The registered systems must have the 'rhncfg-actions' package installed
+      and must allow remote actions to be executed with 'rhn-actions-control
+      --enable-run'.
+
+2. Install the dell-satellite-sync RPM in the RHN server or in any server that
+   has network access to your satellite server.
+
+3. Edit /etc/sysconfig/dell-satellite-sync/dell-satellite-sync.conf accordingly
+   or pass required parameters during execution (for details, pass the -h or
+   --help flag). Since this tool can be run by non-root users, be sure to
+   modify access permissions to the configuration files as needed.
+
+ +----------------+
+ | Server actions |
+ +----------------+
+
+ Dell-satellite-sync imports yum repos into RHN Repositories and then associates
+ the repositories to channels. The repo import (or sync) takes place in the
+ background, so even if you notice that the command completed, the repo import
+ may still be going. This is true especially for the 'platform_independent'
+ channel that contains around 1200 RPMs. 
+
+ Note that we do NOT need to specify the platform-independent repo, it will
+ always try it by default and will skip it if it already exists. Following are
+ several examples.
+
+ +-----------------------------------------------------------------------------+
+ | Example 1: Import the RHEL 6 repositories for 'platform-independent' and    |
+ | ONLY systems R620, R720 and T620. Use your mirrored site.                   |
+ +-----------------------------------------------------------------------------+
+
+ $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+    --server-actions-only --channel=rhel6 --only-systems=per720,per620,pet620 \
+    --repo=http://mirror.example.com/repo/hardware/latest
+ Password: ********
+
+ + Adding per720 to requested system list.
+ + Adding per620 to requested system list.
+ + Adding pet620 to requested system list.
+
+ Checking base channel 'rhel-x86_64-server-5'
+ Channel 'rhel-x86_64-server-5' found.
+   Checking child channel 'Dell OM on platform_independent for rhel-x86_64-server-5'
+   Creating channel...
+   + Creating temporary channel: dell-om-platform_independent-rhel-x86_64-server-5-tmp
+   + Cloning temporary channel into real channel: dell-om-platform_independent-rhel-x86_64-server-5
+   + Deleting temporary channel: dell-om-platform_independent-rhel-x86_64-server-5-tmp
+   Creating repo for channel...
+   Associating repo to channel...
+   Scheduling repo sync...
+   Channel 'Dell OM on platform_independent for rhel-x86_64-server-5' created.
+   Checking child channel 'Dell OM on per720 for rhel-x86_64-server-5'
+   Creating channel...
+   + Creating temporary channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
+   + Cloning temporary channel into real channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5
+   + Deleting temporary channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
+   Creating repo for channel...
+   Associating repo to channel...
+   Scheduling repo sync...
+   Channel 'Dell OM on per720 for rhel-x86_64-server-5' created.
+   Checking child channel 'Dell OM on per620 for rhel-x86_64-server-5'
+   Creating channel...
+   ...
+
+ +-----------------------------------------------------------------------------+
+ | Example 2: Import the RHEL 6 repositories for 'platform-independent' and    |
+ | ALL system (currently 62 system-specific repos). Since we're not specifying |
+ | a repo, it will use the default http://linux.dell.com/repo/hardware/latest  |
+ | Be sure you have a direct connection to the Internet or process will hang!  |                    
+ +-----------------------------------------------------------------------------+
+
+ $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+    --server-actions-only --channel=rhel6 --all-systems
+ Password: ********
+
+ The output will be very similar to Example 1, except it will import all repos.
+
+ +-----------------------------------------------------------------------------+
+ | Example 3: Remove all unused (no servers registered to them) RHEL 5 child   |
+ | channels and packages.                                                      |
+ +-----------------------------------------------------------------------------+
+
+ $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+    --server-actions-only --channel=rhel5 --delete
+ Password: ********
+
+ Checking base channel 'rhel-x86_64-server-5'
+ Channel 'rhel-x86_64-server-5' found.
+   + Deleting channel: dell-om-platform_independent-rhel-x86_64-server-5
+   + Deleting channel: dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+   + Deleting channel: dell-om-system.ven_0x1028.dev_0x02a4-rhel-x86_64-server-5
+   ...
+
+ +----------------+
+ | Client actions |
+ +----------------+
+
+ After we have imported channels into RHN, we have the option to automatically
+ subscribe all registered clients to their respective system-specific child
+ channels. Be sure YOU HAVE MET ALL THE PRE-REQUISITES MENTIONED IN THE README
+ FILE or client actions will fail.
+
+ During execution, you will see a status of which registered systems have
+ completed. The tool will not exit until ALL systems have been serviced, and
+ will timeout after approx 2 hours.
+
+ +-----------------------------------------------------------------------------+
+ | Example 1: Subscribe all registered systems to the 'platform_independent'   |
+ | and their respective system-specfic channel.                                | 
+ +-----------------------------------------------------------------------------+
+
+ $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+    --client-actions-only
+ Password: ********
+
+ Subscribing clients to the 'platform_independent' channel (if not already subscribed)...
+ Checking system m620 with id 1000010022:
+   m620 vendor is: 'Dell Inc.'
+   m620 is subscribed to base channel: rhel-x86_64-server-6.
+   + Subscribing m620 to dell-om-platform_independent-rhel-x86_64-server-6
+ Checking system m905 with id 1000010021:
+   m905 vendor is: 'Dell Inc.'
+   m905 is subscribed to base channel: rhel-x86_64-server-5.
+   + Subscribing m905 to dell-om-platform_independent-rhel-x86_64-server-5
+   ...
+ Scheduling package installation and actions on clients...
+ Scheduling for m620:
+   + Scheduling GPG key install on system: m620 id: 1000010022
+   + Scheduling package install 'smbios-utils' on system: m620 id: 1000010022
+   + Scheduling execution of 'smbios-sys-info' on system: m620 id: 1000010022
+ Scheduling for m905:
+   + Scheduling GPG key install on system: m905 id: 1000010021
+   + Scheduling package install 'smbios-utils' on system: m905 id: 1000010021
+   + Scheduling execution of 'smbios-sys-info' on system: m905 id: 1000010021
+   ...
+ Waiting for client actions to complete...
+
+ 10.10.2012 14:13:34: Checking system: m620
+ 10.10.2012 14:13:34:   m620 not completed yet.
+ 10.10.2012 14:13:34: Checking system: m905
+ 10.10.2012 14:13:34:   m905 not completed yet.
+ 10.10.2012 14:13:38:  . . . . . waiting for results . . . . .
+  ...
+ System ID for m620 is: 0x04db
+   Subscribing m620 to channel dell-om-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
+   + Subscribing m620 to dell-om-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
+ System ID for m905 is: 0x027b
+   Subscribing m905 to channel dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+   + Subscribing m905 to dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+ All actions completed.
+ Completed: ['m620', 'm905']
+
+ +-----------------------------------------------------------------------------+
+ | If the client actions take too long (default 5 minutes), you will see this  |
+ | message                                                                     |
+ +-----------------------------------------------------------------------------+
+
+ Waiting for client actions to complete.
+ Warning: Process is taking long, check the following systems: ['pem620', 'pem905']
+      - Are the systems configured for remote actions (rhn-actions-control --enable-run)?
+      - Is 'osad' started on the systems?
+      - Is the system on, reachable on the network, and allow connections from satserver.example.com?
+      - You can run 'rhn_check' on the systems to force a check-in.
+ Ctrl+C will abort this waiting. (default wait time: 121 minutes)
+ 10.10.2012 14:19:38:   . . . . . waiting for results . . . . .
+
+ +-----------------------------------------------------------------------------+
+ | If over 2 hours pass, you will see this                                     |
+ +-----------------------------------------------------------------------------+
+
+ Warning: Process is taking too long, moving on.
+ All actions completed.
+
+ ! No systems were successfully completed!
+ Not completed: ['pem620', 'pem905']
+
+--------------------------------------------------------------------------------
+2012.10.10
