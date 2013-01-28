@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 1.0.0
+Version: 1.0.1
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -52,5 +52,5 @@ rm -rf /etc/sysconfig/dell-satellite-sync
 %doc EXAMPLES README LICENSE
 
 %changelog
-* Tue Oct 16 2012 1.0.0-1
+* Mon Jan 28 2013 1.0.1-1
 - For a complete list of logs see /usr/share/doc/dell-satellite-sync-%{version}/README

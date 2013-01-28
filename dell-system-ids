@@ -1,7 +1,8 @@
 # Mapping of system names to system device IDs for Dell PowerEdge servers
 # Latest file at http://linux.dell.com/dell-satellite-sync/dell-system-ids
-# Last Updated: Oct 1, 2012
+# Last Updated: Jan 28, 2013
 dx6000:0x0430
+dx6004s:0x04ae
 dx6012s:0x043c
 pe1900:0x01b8
 pe1950:0x01b3

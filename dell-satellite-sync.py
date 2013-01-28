@@ -58,7 +58,7 @@ parser.add_option("-r", "--repo", dest="repo", help="Location of Dell yum reposi
 parser.add_option("-c", "--channel", dest="channel", help="OS parent channel to use. e.g. 'rhel4', 'rhel5', 'rhel6' or 'sles11'", default=CHANNEL)
 parser.add_option("-o", "--only-systems", dest="only_systems", help="Create system-specific channels ONLY for these systems. e.g. 'per720,per620,pet620'", default=ONLY_SYSTEMS)
 parser.add_option("-a", "--all-systems", action="store_true", dest="all_systems", help="Create system-specific channels for ALL supported Dell systems.", default=False)
-parser.add_option("-d", "--delete", action="store_true", dest="delete", help="Delete all unused Dell channels and packages", default=False)
+parser.add_option("-d", "--delete", action="store_true", dest="delete", help="Delete all unused Dell channels / packages for given OS parent channel.", default=False)
 parser.add_option("-C", "--client-actions-only", action="store_true", dest="client_actions_only", help="Subscribe systems to corresponding channels", default=False)
 parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="Enable verbose output", default=False)
 parser.add_option("-D", "--debug", action="store_true", dest="debug", default=False, help="Enable lots of debug output (more than verbose)")
@@ -573,8 +573,10 @@ def main():
 			only_systems = []
 
 		# Build list based on --only-systems (if any) and add 'platform_independent'
-		systems = build_system_list(SYSTEM_VENDOR_ID, only_systems)
-		systems['platform_independent'] = PLATFORM_INDEPENDENT
+		# No need to build out system list if we're deleting channels
+		if not options.delete:
+			systems = build_system_list(SYSTEM_VENDOR_ID, only_systems)
+			systems['platform_independent'] = PLATFORM_INDEPENDENT
 
 		# Build supported channel list based on --channel
 		SUPPORTED_CHANNELS = build_supported_channels(options.channel)
@@ -589,18 +591,21 @@ def main():
 				continue
 			else:
 				print "Channel '%s' found." % parent
-				# Ask if we want to delete channels, and then exit since we're done
+				# Ask if we want to delete channels, and then keep going through loop (continue)
 				if options.delete:
 					for channel in current_channels:
 						# Get list of relevant channels that do not have any systems associated with it
 						if 'dell-om-' in channel['label'] and parent in channel['label'] and channel['systems'] == 0:
-							# Get repo associated with channel since we're going to delete it too
-							repos = client.channel.software.listChannelRepos(key, channel['label'])
 							delete_channel(key, channel['label'])
-							# Remove repo associated with channel
-							for repo in repos:
-								client.channel.software.removeRepo(key, repo['label'])
-					break
+							# Remove repo associated with channel - repo has same name as channel
+		                                        # and there is only one repo per channel so ok to use here. Doing this
+							# way because of issue with older versions of Spacewalk (RHN).
+							try:
+								client.channel.software.removeRepo(key, channel['label'])
+							except:
+								print RED + "  ! Error removing repo:", channel['name'] + ENDC
+								raise
+					continue
 
 				channels[parent] = SUPPORTED_CHANNELS[parent]
 				channels[parent]['child_channels'] = []		# Initialize key for child channels

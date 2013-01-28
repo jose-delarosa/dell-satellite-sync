@@ -91,6 +91,50 @@
  simply running the 'mk_rpm.sh' script. Make sure you have the 'rpm-build'
  package installed.
 
+ FAQ
+ ===
+
+ Q. I've imported into RHN the repositories for a certain release of OpenManage,
+    and noticed there is a new release, how do I upgrade the packages in the
+    RHN channels?
+
+ A. Currently, the only way to upgrade is to remove the old channels ("--delete"
+    option) and import the repositories for the newer OM release.
+
+ Q. I imported the repositories from http://linux.dell.com/repo/hardware/latest,
+    and I can see the channels listed in my satellite server, but it's not
+    syncing any packages, it tells me there are 0 packages listed. What's wrong?
+
+ A. After the channels are created, dell-satellite-sync attempts to initiate a
+    sync with the defined repository. If it's not populating the channels with
+    packages, there is a communication issue with the remote repository. Things
+    to check for include:
+
+    - Can you resolve linux.dell.com or the server where the repositories are
+      being synced from?
+    - Do you have a proxy server that's causing issues?
+    - Is there a firewall? Port 80/TCP should be the only requirement.
+    - Can you initiate a manual sync? Go to the 'Channels' tab and select:
+      Manage Software Channels -> [Click on Channel] -> Repositories -> Sync ->
+      Sync Now
+
+ If you are still having issues, send a note to the linux-poweredge@dell.com
+ mailing list with your specific question.
+
+ Known Issues
+ ============
+
+ * The check_url() function is not 100% effective.
+
+   This function is used to check the existance of remote repositories. If a
+   repository doesn't exist, it ignores the request. Useful when asking for
+   RHEL 6 x86 repositories, which are not supported and are not available.
+   When check_url() returns a false positive and it creates a channel and
+   repository which will never be populated with packages (since they don't
+   exist) the only way to undo this is to manually remove the channels and
+   repositories from RHN, or re-run dell-satellite-sync with the "--delete"
+   option.
+
  Getting Involved
  ================
 
@@ -110,6 +154,10 @@
  * Add --auto option to scan environment to see what Dell systems there are in
    the network.
  * Add logging options.
+ * Add option to re-sync all repositories, for the case when channels and
+   corresponding repositories were created, but package sync failed for some
+   reason.
+ * Add option to specify architecture of channels (i.e. x86, x86_64).
 
  Author
  ======
@@ -120,6 +168,11 @@
 
  History
  =======
+
+ * Mon Jan 28 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1
+ - Fixed bug when deleting child repo channels.
+ - Fixed API compatability issue with RHN 5.4.1 (channel.software.removeRepo).
+ - Added system ID for dx6004s.
 
  * Tue Oct 16 2012 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.0-1
  - Major clean up for simpler use
