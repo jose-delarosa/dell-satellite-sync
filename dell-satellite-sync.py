@@ -6,7 +6,7 @@
 # Copyright (c) 2009 Red Hat, Inc.
 #
 # Updates for version 1.0 by Jose De La Rosa <jose_de_la_rosa@dell.com>
-# Copyright (c) 2012 Dell
+# Copyright (c) 2013 Dell
 # See README for updates
 #
 # This software is licensed to you under the GNU General Public License,
@@ -23,8 +23,9 @@
 # Populate dell-satellite-sync.conf with your specific information or pass as arguments
 execfile("/etc/sysconfig/dell-satellite-sync/dell-satellite-sync.conf")
 idfile = "/etc/sysconfig/dell-satellite-sync/dell-system-ids"
-RED       = "\033[31m"
+RED       = '\033[31m'
 GREEN     = '\033[32m'
+BOLD      = '\033[1m'
 ENDC      = '\033[0m'                     # end color
 
 # Change this to a specific version as needed
@@ -40,8 +41,9 @@ DELL_INFO = {
 ###################################################################################
 # Import modules
 try:
-	import xmlrpclib, os, sys, signal, time, re, getpass, httplib, urlparse
+	import xmlrpclib, os, sys, signal, time, re, getpass, urllib2
 	from optparse import OptionParser
+	from urllib2 import Request, urlopen, URLError
 except:
 	print "Could not import modules"
 	raise
@@ -116,21 +118,17 @@ else:
 	client_verbose = 0
 client = xmlrpclib.Server(sat_url, verbose = client_verbose)
 
-# Next two functions is borrowed code
-def get_server_status_code(url):
-    # Download just the header of a URL and return the server's status code.
-    host, path = urlparse.urlparse(url)[1:3]    # elems [1] and [2]
-    try:
-        conn = httplib.HTTPConnection(host)
-        conn.request('HEAD', path)
-        return conn.getresponse().status
-    except StandardError:
-        return None
-
 def check_url(url):
-    # Check if a URL exists without downloading the whole file. We only check the URL header.
-    good_codes = [httplib.OK, httplib.FOUND, httplib.MOVED_PERMANENTLY]
-    return get_server_status_code(url) in good_codes
+	try:
+		response = urllib2.urlopen(url)
+	except URLError, e:
+		if hasattr(e, 'reason'):
+			# Couldn't connect to server
+			return False
+		elif hasattr(e, 'code'):
+			# The server couldn't fulfill the request
+			return False
+	return response	# If we get here, then connection to url is ok
 
 def build_supported_channels(channel):
 	# RHEL 6 channels
@@ -206,7 +204,7 @@ def build_system_list(vendor_id, only_systems):
 			if not line.strip() or line[0] == '#':	# skip comments and empty lines
 				continue
 			if server == line.split(':')[0]:
-				if options.verbose: print GREEN + "+ Adding %s to requested system list." % server + ENDC
+				if options.verbose: print BOLD + "+ Adding %s to requested system list." % server + ENDC
     				systemid = (line.rstrip().split(':'))[1]    # remove end-of-line, then split, then extract location '1'
 				full_system_id = "system.ven_0x1028.dev_" + systemid
 				systems[full_system_id] = server
@@ -630,12 +628,12 @@ def main():
 				url = repo_url + systems[system] + "/" + subdir
 				# Check if repo location exists. Some repos (RHEL 6 x86 for example) are not supported
 				if check_url(url) == False:
-					print "  Repo requested '%s' does not exist." % url
+					print BOLD + "  Repo requested '%s' does not exist." % url + ENDC
 					continue
 
 				print "  Checking child channel '%s'" % c_name
 				if channel_exists(key, c_label, current_channels):
-					print "  Channel found, skipping."
+					print BOLD + "  Channel found, skipping." + ENDC
 				else:
 					# Create channel & repo, associate repo to channel, and schedule repo sync
 					# Note that label for channel and repo is the same (c_label)

@@ -124,16 +124,19 @@
  Known Issues
  ============
 
- * The check_url() function is not 100% effective.
+ * The check_url() function may not 100% effective.
 
    This function is used to check the existance of remote repositories. If a
    repository doesn't exist, it ignores the request. Useful when asking for
-   RHEL 6 x86 repositories, which are not supported and are not available.
-   When check_url() returns a false positive and it creates a channel and
-   repository which will never be populated with packages (since they don't
-   exist) the only way to undo this is to manually remove the channels and
-   repositories from RHN, or re-run dell-satellite-sync with the "--delete"
-   option.
+   RHEL 6 x86 repositories, which are not available from Dell. When check_url()
+   returns a false positive and it creates a channel and repository which will
+   never be populated with packages (since they don't exist) the only way to
+   undo this is to manually remove the channels and repositories from RHN, or
+   re-run dell-satellite-sync with the "--delete" option.
+
+   Update 11/08/2013 - Switched to urllib2 library which appears to be more
+   effective in detecting if remote http site exists, especially when going
+   through a proxy server.
 
  Getting Involved
  ================
@@ -148,11 +151,6 @@
  Future Enhancements
  ===================
 
- * Better handling in case when being a proxy server and remote proxy can't be
-   reached. A timeout would be nice.
- * Sign RPM.
- * Add --auto option to scan environment to see what Dell systems there are in
-   the network.
  * Add logging options.
  * Add option to re-sync all repositories, for the case when channels and
    corresponding repositories were created, but package sync failed for some
@@ -168,6 +166,9 @@
 
  History
  =======
+
+ * Fri Nov 8 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.2-1
+ - Replaced check_url function to verify if desired yum repo exists.
 
  * Mon Jan 28 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1
  - Fixed bug when deleting child repo channels.
