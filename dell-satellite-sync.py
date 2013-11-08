@@ -377,14 +377,14 @@ fi
 				continue
 			else:
 				package_found = True
-			if options.debug: print "DEBUG: %s package search results: %s" % (system['name'], smbios_packages)
+			if options.debug: print "  %s package search results: %s" % (system['name'], smbios_packages)
 		smbios_package = smbios_packages[-1]
 		# First try to schedule gpg key imports for libsmbios and dell
 		try:
 			if options.verbose: print "  + Scheduling GPG key install on system: %s id: %i" % (system['name'], system['id'])
 			id = client.system.schedule_script_run(key, system['id'], "root", "root", 600, gpg_script, system['last_checkin'])
 		except:
-			print RED + "! Error trying to schedule gpg key install for %s" % system['name'] + ENDC
+			print RED + "! Error trying to schedule GPG key install for %s" % system['name'] + ENDC
 			system['skip'] = True
 			if options.debug: raise
 			continue 
@@ -435,7 +435,7 @@ def get_action_results(key, systems):
 				if not system['complete']:
 					if options.verbose: print timestamp(), "Checking system:", system['name']
 					script_result = client.system.get_script_results(key, system['action_id'])
-					if (options.debug) and (not script_result == []): 
+					if options.debug and not script_result == []: 
 						print "Script result for %s: %s:" % (system['name'], script_result)
 					if not script_result == []:
 						if options.debug:
@@ -443,7 +443,6 @@ def get_action_results(key, systems):
 						system['output'] = script_result[0]['output']
 						system['return_code'] = script_result[0]['returnCode']
 						system['complete'] = True
-						if options.verbose: print timestamp() + GREEN + "  %s completed!" % (system['name']) + ENDC
 					else:
 						system['complete'] = False
 						if options.verbose: print timestamp(), "  %s not completed yet." % (system['name'])
@@ -490,8 +489,6 @@ def get_action_results(key, systems):
 						print "Ctrl+C will abort this waiting. (default wait time: %i minutes)" % time_bail
 						warned_short = True
 				waits += 1
-			else:
-				print "\n"
 	except KeyboardInterrupt:
 		print "\nInfo: KeyboardInterrupt detected, moving on."
 
@@ -507,10 +504,11 @@ def get_action_results(key, systems):
 				system['system_id'] = line.split()[-1].lower()
 				break
 		else:
-			system['system_id'] = False
+			system['system_id'] = 0		# invalid
+			print RED + "! Error running remote actions on %s" % system['name'] + ENDC
 	print
 	for system in systems:
-		if system['skip'] or not system['complete']: continue
+		if system['skip'] or not system['complete'] or system['system_id'] == 0: continue
 		if options.verbose: print "System ID for %s is: %s" % (system['name'], system['system_id'])
 		new_channel = DELL_INFO['label'] + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
 		system['system_channel'] = new_channel
@@ -545,11 +543,13 @@ def show_client_results(systems):
 		print "Not completed: %s" % not_completed
 
 def main():
-	# Login to Satellite server
-	key = client.auth.login(options.user, options.password)
+	# Check RHN version to ensure minimum compatibiity
 	if client.api.get_version() < 5.1:
 		print RED + "This script uses features not available with Satellite versions older than 5.1" + ENDC
 		sys.exit(1)
+
+	# Login to Satellite server
+	key = client.auth.login(options.user, options.password)
 
 	# Server actions
 	if options.server_actions_only:
@@ -675,13 +675,12 @@ def main():
 
 	# Client actions
 	if options.client_actions_only:
-		print "Subscribing clients to the '%s' channel (if not already subscribed)..." % (PLATFORM_INDEPENDENT)
+		print "\nSubscribing clients to the '%s' channel:" % (PLATFORM_INDEPENDENT)
 		client_systems = subscribe_clients(key)
-		print "Scheduling package installation and actions on clients..."
+		print "\nScheduling package installation and actions on clients:"
 		client_systems = schedule_actions(key, client_systems)
-		print "Waiting for client actions to complete..."
+		print "\nWaiting for client actions to complete..."
 		client_systems = get_action_results(key, client_systems)
-		print "All actions completed."
 		show_client_results(client_systems)
 
 	# Logout of the Satellite server
