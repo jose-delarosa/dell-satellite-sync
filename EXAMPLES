@@ -7,8 +7,8 @@
    Server actions:
 
    a) Disk space: In your RHN server, you will need about 12 GB of free disk
-      space for the latest version of the repositories (OMSA 7.x). Older
-      versions (OMSA 6.x) require about 6-7 GB each.
+      space for each of the latest versions of the yum repos (OMSA 7.x). Older
+      versions (OMSA 6.x) require about 6-7 GB for each repo.
    b) RHN credentials: The login ID of the RHN satellite server must have
       permissions to create child channels under any base channels.
 
@@ -49,7 +49,7 @@
  | ONLY systems R620, R720 and T620. Use your mirrored site.                   |
  +-----------------------------------------------------------------------------+
 
- $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+ $ dell-satellite-sync --user=mruser --satserver=rhn.example.com --verbose \
     --server-actions-only --channel=rhel6 --only-systems=per720,per620,pet620 \
     --repo=http://mirror.example.com/repo/hardware/latest
  Password: ********
@@ -60,25 +60,25 @@
 
  Checking base channel 'rhel-x86_64-server-5'
  Channel 'rhel-x86_64-server-5' found.
-   Checking child channel 'Dell OM on platform_independent for rhel-x86_64-server-5'
+   Checking child channel 'Dell OM 7.3.0 on platform_independent for rhel-x86_64-server-5'
    Creating channel...
-   + Creating temporary channel: dell-om-platform_independent-rhel-x86_64-server-5-tmp
-   + Cloning temporary channel into real channel: dell-om-platform_independent-rhel-x86_64-server-5
-   + Deleting temporary channel: dell-om-platform_independent-rhel-x86_64-server-5-tmp
+   + Creating temporary channel: dell-om-7.3.0-platform_independent-rhel-x86_64-server-5-tmp
+   + Cloning temporary channel into real channel: dell-om-7.3.0-platform_independent-rhel-x86_64-server-5
+   + Deleting temporary channel: dell-om-7.3.0-platform_independent-rhel-x86_64-server-5-tmp
    Creating repo for channel...
    Associating repo to channel...
    Scheduling repo sync...
-   Channel 'Dell OM on platform_independent for rhel-x86_64-server-5' created.
-   Checking child channel 'Dell OM on per720 for rhel-x86_64-server-5'
+   Channel 'Dell OM 7.3.0 on platform_independent for rhel-x86_64-server-5' created.
+   Checking child channel 'Dell OM 7.3.0 on per720 for rhel-x86_64-server-5'
    Creating channel...
-   + Creating temporary channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
-   + Cloning temporary channel into real channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5
-   + Deleting temporary channel: dell-om-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
+   + Creating temporary channel: dell-om-7.3.0-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
+   + Cloning temporary channel into real channel: dell-om-7.3.0-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5
+   + Deleting temporary channel: dell-om-7.3.0-system.ven_0x1028.dev_0x048c-rhel-x86_64-server-5-tmp
    Creating repo for channel...
    Associating repo to channel...
    Scheduling repo sync...
-   Channel 'Dell OM on per720 for rhel-x86_64-server-5' created.
-   Checking child channel 'Dell OM on per620 for rhel-x86_64-server-5'
+   Channel 'Dell OM 7.3.0 on per720 for rhel-x86_64-server-5' created.
+   Checking child channel 'Dell OM 7.3.0 on per620 for rhel-x86_64-server-5'
    Creating channel...
    ...
 
@@ -89,26 +89,27 @@
  | Be sure you have a direct connection to the Internet or process will hang!  |                    
  +-----------------------------------------------------------------------------+
 
- $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+ $ dell-satellite-sync --user=mruser --satserver=rhn.example.com --verbose \
     --server-actions-only --channel=rhel6 --all-systems
  Password: ********
 
- The output will be very similar to Example 1, except it will import all repos.
+ The output will be very similar to Example 1, except it will import the repos
+ for all available systems.
 
  +-----------------------------------------------------------------------------+
  | Example 3: Remove all unused (no servers registered to them) RHEL 5 child   |
  | channels and packages.                                                      |
  +-----------------------------------------------------------------------------+
 
- $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+ $ dell-satellite-sync --user=mruser --satserver=rhn.example.com --verbose \
     --server-actions-only --channel=rhel5 --delete
  Password: ********
 
  Checking base channel 'rhel-x86_64-server-5'
  Channel 'rhel-x86_64-server-5' found.
-   + Deleting channel: dell-om-platform_independent-rhel-x86_64-server-5
-   + Deleting channel: dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
-   + Deleting channel: dell-om-system.ven_0x1028.dev_0x02a4-rhel-x86_64-server-5
+   + Deleting channel: dell-om-7.3.0-platform_independent-rhel-x86_64-server-5
+   + Deleting channel: dell-om-7.3.0-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+   + Deleting channel: dell-om-7.3.0-system.ven_0x1028.dev_0x02a4-rhel-x86_64-server-5
    ...
 
  +----------------+
@@ -129,7 +130,7 @@
  | and their respective system-specfic channel.                                | 
  +-----------------------------------------------------------------------------+
 
- $ dell-satellite-sync --user=joeuser --satserver=satserver.example.com --verbose \
+ $ dell-satellite-sync --user=mruser --satserver=rhn.example.com --verbose \
     --client-actions-only
  Password: ********
 
@@ -137,11 +138,11 @@
  Checking system m620 with id 1000010022:
    m620 vendor is: 'Dell Inc.'
    m620 is subscribed to base channel: rhel-x86_64-server-6.
-   + Subscribing m620 to dell-om-platform_independent-rhel-x86_64-server-6
+   + Subscribing m620 to dell-om-7.3.0-platform_independent-rhel-x86_64-server-6
  Checking system m905 with id 1000010021:
    m905 vendor is: 'Dell Inc.'
    m905 is subscribed to base channel: rhel-x86_64-server-5.
-   + Subscribing m905 to dell-om-platform_independent-rhel-x86_64-server-5
+   + Subscribing m905 to dell-om-7.3.0-platform_independent-rhel-x86_64-server-5
    ...
  Scheduling package installation and actions on clients...
  Scheduling for m620:
@@ -162,11 +163,11 @@
  10.10.2012 14:13:38:  . . . . . waiting for results . . . . .
   ...
  System ID for m620 is: 0x04db
-   Subscribing m620 to channel dell-om-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
-   + Subscribing m620 to dell-om-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
+   Subscribing m620 to channel dell-om-7.3.0-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
+   + Subscribing m620 to dell-om-7.3.0-system.ven_0x1028.dev_0x04db-rhel-x86_64-server-6
  System ID for m905 is: 0x027b
-   Subscribing m905 to channel dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
-   + Subscribing m905 to dell-om-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+   Subscribing m905 to channel dell-om-7.3.0-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
+   + Subscribing m905 to dell-om-7.3.0-system.ven_0x1028.dev_0x027b-rhel-x86_64-server-5
  All actions completed.
  Completed: ['m620', 'm905']
 
@@ -179,7 +180,7 @@
  Warning: Process is taking long, check the following systems: ['pem620', 'pem905']
       - Are the systems configured for remote actions (rhn-actions-control --enable-run)?
       - Is 'osad' started on the systems?
-      - Is the system on, reachable on the network, and allow connections from satserver.example.com?
+      - Is the system on, reachable on the network, and allow connections from rhn.example.com?
       - You can run 'rhn_check' on the systems to force a check-in.
  Ctrl+C will abort this waiting. (default wait time: 121 minutes)
  10.10.2012 14:19:38:   . . . . . waiting for results . . . . .
@@ -195,4 +196,4 @@
  Not completed: ['pem620', 'pem905']
 
 --------------------------------------------------------------------------------
-2012.10.10
+2013.11.12

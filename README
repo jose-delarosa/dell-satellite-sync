@@ -1,25 +1,20 @@
  Introduction 
  ============
 
- Dell-satellite-sync is a tool for taking the Dell OpenManage yum repositories,
- importing them into channels in an RHN Satellite or Spacewalk server, and
- subscribing registered Dell systems to the correct channels. It uses native
- APIs, so it can be run by non-root users as long as valid RHN login credentials
- are provided.
+ Dell-satellite-sync is a tool used to import the Dell OpenManage (OM) yum
+ repositories into an RHN Satellite / Spacewalk server and subscribe registered
+ servers to the corresponding OM channels.
 
- For additional information and downloads, visit
- http://linux.dell.com/dell-satellite-sync.
-
- For more information about the Dell OpenManage repositories, visit
- http://linux.dell.com/repo/hardware
+ For additional information visit http://linux.dell.com/dell-satellite-sync.
+ For information on the OM yum repos, visit http://linux.dell.com/repo/hardware.
 
  Overview                                                                     |
  ========
 
- The functionality of dell-satellite-sync is divided into two parts: server
- actions and client actions.
+ The functionality of dell-satellite-sync is divided into two parts: _server_
+ actions and _client_ actions.
 
- i. Server actions
+ * Server actions
 
  For each existing OS base channel in your RHN server (i.e. RHEL 5 i386,
  RHEL 6 x86_64), dell-satellite-sync creates child channels that correspond to
@@ -36,10 +31,10 @@
  Dell-satellite-sync uses system IDs (4-character hex string) to create labels 
  for server-specific child channels. For example, the label for the RHEL 6
  child channel for the Dell PowerEdge R515 server is the somewhat cryptic
- 'dell-om-system.ven_0x1028.dev_0x0489-rhel-x86_64-server-6', but you shouldn't
+ 'dell-om-7.3.0-system.ven_0x1028.dev_0x0489-rhel-x86_64-server-6', but you shouldn't
  have to deal with channel labels at all. On the other hand, channel names
  (which are more commonly used) have more descriptive names such as
- "Dell OM on per515 for rhel-x86_64-server-6".
+ "Dell OM 7.3.0 on per515 for rhel-x86_64-server-6".
 
  The file /etc/sysconfig/dell-system-ids contains a mapping of server names to
  system IDs that are used to label OM child channels. This list was last updated
@@ -49,10 +44,9 @@
  not be able to import the system-specific channel for your server.
 
  Dell-satellite-sync uses by default the yum repositories located in
- http://linux.dell.com/repo/hardware/latest, but you can use any mirror as
- desired.
+ http://linux.dell.com/repo/hardware/latest, but you can use a mirror as well.
 
- ii. Client actions
+ * Client actions
 
  When executing client actions, dell-satellite-sync queries the RHN database
  for all subscribed systems and attempts to register them to the
@@ -94,12 +88,29 @@
  FAQ
  ===
 
- Q. I've imported into RHN the repositories for a certain release of OpenManage,
-    and noticed there is a new release, how do I upgrade the packages in the
-    RHN channels?
+ Q. Do I have to be root (superuser) to run this tool?
 
- A. Currently, the only way to upgrade is to remove the old channels ("--delete"
-    option) and import the repositories for the newer OM release.
+ A. No. Since native APIs are used, this tool can be used by non-root users as
+    long as valid RHN login credentials are provided.
+
+ Q. I imported the yum repos for a release of OpenManage and noticed there is
+    a newer release, how do I upgrade OpenManage on my registered systems?
+
+ A. If you are using version 1.0.2 or later, then you can import more than one
+    version of the OpenManage repos into your Satellite or Spacewalk server, and
+    then add the new channel to your registered system to perform an upgrade:
+
+    # /opt/dell/srvadmin/sbin/srvadmin-services.sh stop
+    # yum -y upgrade
+    # /opt/dell/srvadmin/sbin/srvadmin-services.sh start
+
+    If you are using version 1.0.1 or earlier, then the only way to upgrade OM
+    is to remove the old channels ("--delete" option) and import the repositories
+    for the newer OM release.
+
+    Dell-satellite-sync 1.0.2 has a new feature that adds the OM version to the
+    OM channel name and label, which allows registering a server to more then one
+    OM channel (and thus allowing package upgrades).
 
  Q. I imported the repositories from http://linux.dell.com/repo/hardware/latest,
     and I can see the channels listed in my satellite server, but it's not
@@ -110,11 +121,11 @@
     packages, there is a communication issue with the remote repository. Things
     to check for include:
 
-    - Can you resolve linux.dell.com or the server where the repositories are
+    * Can you resolve linux.dell.com or the server where the repositories are
       being synced from?
-    - Do you have a proxy server that's causing issues?
-    - Is there a firewall? Port 80/TCP should be the only requirement.
-    - Can you initiate a manual sync? Go to the 'Channels' tab and select:
+    * Do you have a proxy server that's causing issues?
+    * Is there a firewall? Port 80/TCP should be the only requirement.
+    * Can you initiate a manual sync? Go to the 'Channels' tab and select:
       Manage Software Channels -> [Click on Channel] -> Repositories -> Sync ->
       Sync Now
 
@@ -138,6 +149,24 @@
    effective in detecting if remote http site exists, especially when going
    through a proxy server.
 
+ * Importing GPG keys in RHEL 5
+
+   This issue applies only if you are using --client-actions-only.
+
+   Starting with RHEL 5.9, there is an issue when trying to import a GPG key
+   over http:
+
+   # rpm --import http://linux.dell.com/repo/hardware/latest/RPM-GPG-KEY-dell
+   error: http://linux.dell.com/repo/hardware/latest: import read failed(-1).
+
+   A workaround is to manually download the RPM-GPG-KEY-dell and
+   RPM-GPG-KEY-libsmbios files on your client systems and then import the keys:
+
+   # wget http://linux.dell.com/repo/hardware/latest/RPM-GPG-KEY-dell
+   # wget http://linux.dell.com/repo/hardware/latest/RPM-GPG-KEY-libsmbios
+   # rpm --import RPM-GPG-KEY-dell
+   # rpm --import RPM-GPG-KEY-libsmbios
+
  Getting Involved
  ================
 
@@ -151,11 +180,11 @@
  Future Enhancements
  ===================
 
- * Add logging options.
+ * Add option to specify architecture of channels (i386/x86_64) desired.
  * Add option to re-sync all repositories, for the case when channels and
    corresponding repositories were created, but package sync failed for some
    reason.
- * Add option to specify architecture of channels (i.e. x86, x86_64).
+ * Add logging options.
 
  Author
  ======
@@ -167,7 +196,10 @@
  History
  =======
 
- * Fri Nov 8 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.2-1
+ * Wed Nov 13 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.2-1
+ - Added OpenManage version in channels to be able to support OM upgrades.
+
+ * Fri Nov 8 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1
  - Replaced check_url function to verify if desired yum repo exists.
 
  * Mon Jan 28 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1

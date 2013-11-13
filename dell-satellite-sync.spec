@@ -1,6 +1,6 @@
 Summary: Syncs Dell official repositories into RHN Satellite or Spacewalk
 Name: dell-satellite-sync
-Version: 1.0.1
+Version: 1.0.2
 release: 1%{?dist}
 License: GPL
 ExclusiveOS: Linux
@@ -13,8 +13,8 @@ ExcludeArch: s390 s390x ppc64
 
 %description
 dell-satellite-sync is a tool for taking Dell's official Linux software
-repositories, syncing them into an RHN or Spacewalk server, and subscribing
-registered Dell systems to the repositories' channels.
+repositories, syncing them into an RHN or Spacewalk server, and optionally
+subscribing registered Dell systems to the repositories' channels.
 
 %prep
 %setup -q

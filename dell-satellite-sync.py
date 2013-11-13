@@ -130,6 +130,27 @@ def check_url(url):
 			return False
 	return response	# If we get here, then connection to url is ok
 
+def get_om_version(url):
+	# Plan A: There should be a VERSION file in repo_url
+        resp = check_url(url + "VERSION")
+        if not resp == False:
+		om_version = resp.read().rstrip().split("=")[1]
+		return om_version
+	# Plan B: Ask user or offer to abort to refresh cloned repository 
+	print BOLD + "VERSION file not found!" + ENDC
+	print "\nIf you are importing directly from http://linux.dell.com/repo/hardware, verify"
+	print "your network connection is working. Are you behind a proxy server?"
+	print "\nIf you are importing from a cloned repository, you'll have to clone again from"
+	print "http://linux.dell.com/repo/hardware. Repositories now include a VERSION file"
+	print "that specifies the OpenManage version of each repository. You have two options:\n"
+	print " * Clone again from http://linux.dell.com/repo/hardware (recommended)"
+	print "   or"
+	print " * Provide the OpenManage version below (i.e. 7.2.0, 7.3.1).\n"
+	om_version = raw_input("Enter version (no quotes) or 'q' to quit [q] : ")
+	if om_version == "q" or om_version == "":
+		return False
+	return om_version
+
 def build_supported_channels(channel):
 	# RHEL 6 channels
 	if channel == "rhel6":
@@ -289,7 +310,7 @@ def subscribe(key, base_channel, new_channel, system_id, system_name):
 	channel_labels.append(new_channel)
 	return client.system.set_child_channels(key, system_id, channel_labels)
 
-def subscribe_clients(key):
+def subscribe_clients(key, om_version):
 	'''Creates list of registered clients, and subscribes them to the platform_independent channel'''
 	systems = client.system.list_systems(key)
 	scheduled = []
@@ -313,7 +334,7 @@ def subscribe_clients(key):
 				system['base_channel'] = base_channel
 				if options.verbose: print "  %s is subscribed to base channel: %s." % (system['name'], base_channel)
 				scheduled.append(system['id'])
-				new_channel = DELL_INFO['label'] + '-' + PLATFORM_INDEPENDENT + '-' + base_channel
+				new_channel = DELL_INFO['label'] + '-' + om_version + '-' + PLATFORM_INDEPENDENT + '-' + base_channel
 				system['platform_independent'] = new_channel
 				if not subscribe(key, base_channel, new_channel, system['id'], system['name']):
 					system['skip'] = True
@@ -418,7 +439,7 @@ def minutes(iterations, ticks):
 	'''Returns number appropriate to the number of ticks in minutes'''
 	return iterations * (60 / ticks)
 
-def get_action_results(key, systems):
+def get_action_results(key, systems, om_version):
 	'''Gets action results that have been scheduled'''
 	time_warn = 5
 	time_bail = 121
@@ -510,7 +531,7 @@ def get_action_results(key, systems):
 	for system in systems:
 		if system['skip'] or not system['complete'] or system['system_id'] == 0: continue
 		if options.verbose: print "System ID for %s is: %s" % (system['name'], system['system_id'])
-		new_channel = DELL_INFO['label'] + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
+		new_channel = DELL_INFO['label'] + '-' + om_version + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
 		system['system_channel'] = new_channel
 		if options.verbose: print "  Subscribing %s to channel %s" % (system['name'], system['system_channel'])
 		if not subscribe(key, system['base_channel'], system['system_channel'], system['id'], system['name']):
@@ -546,6 +567,13 @@ def main():
 	# Check RHN version to ensure minimum compatibiity
 	if client.api.get_version() < 5.1:
 		print RED + "This script uses features not available with Satellite versions older than 5.1" + ENDC
+		sys.exit(1)
+
+	# Get Open Manage version and use it in channel & repository label, name and summary
+	om_version = get_om_version(repo_url)
+	if om_version == False:
+		print BOLD + "OpenManage version not specified. Aborting." + ENDC
+		client.auth.logout(key)
 		sys.exit(1)
 
 	# Login to Satellite server
@@ -618,9 +646,9 @@ def main():
 			# If a channel already exists, then I skip it, even if there are zero packages in it. Is that a good idea?
 			for system in systems:
 				# use system name plus parent to create a unique child channel
-				c_label = DELL_INFO['label'] + '-' + system + '-' + parent
-				c_name = DELL_INFO['name'] + ' on ' + systems[system] + ' for ' + parent
-				c_summary = DELL_INFO['summary'] + ' on ' + systems[system] + ' running ' + parent
+				c_label = DELL_INFO['label'] + '-' + om_version + '-' + system + '-' + parent
+				c_name = DELL_INFO['name'] + ' ' + om_version + ' on ' + systems[system] + ' for ' + parent
+				c_summary = DELL_INFO['summary'] + ' ' + om_version + ' on ' + systems[system] + ' running ' + parent
 				c_arch = arch
 				channels[parent]['child_channels'].append(system)
 
@@ -676,11 +704,11 @@ def main():
 	# Client actions
 	if options.client_actions_only:
 		print "\nSubscribing clients to the '%s' channel:" % (PLATFORM_INDEPENDENT)
-		client_systems = subscribe_clients(key)
+		client_systems = subscribe_clients(key, om_version)
 		print "\nScheduling package installation and actions on clients:"
 		client_systems = schedule_actions(key, client_systems)
 		print "\nWaiting for client actions to complete..."
-		client_systems = get_action_results(key, client_systems)
+		client_systems = get_action_results(key, client_systems, om_version)
 		show_client_results(client_systems)
 
 	# Logout of the Satellite server
