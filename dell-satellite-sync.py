@@ -6,7 +6,7 @@
 # Copyright (c) 2009 Red Hat, Inc.
 #
 # Updates for version 1.0 by Jose De La Rosa <jose_de_la_rosa@dell.com>
-# Copyright (c) 2013 Dell
+# Copyright (c) 2014 Dell
 # See README for updates
 #
 # This software is licensed to you under the GNU General Public License,
@@ -29,7 +29,6 @@ BOLD      = '\033[1m'
 ENDC      = '\033[0m'                     # end color
 
 # Change this to a specific version as needed
-SYSTEM_VENDOR_ID = 'system.ven_0x1028'
 PLATFORM_INDEPENDENT = 'platform_independent'		# Subdir of repo that contains platform agnostic rpms
 DELL_INFO = { 
 	# Careful with the label and name values, they are appended to system ids + base_channel names, and cannot exceed 64 characters
@@ -173,11 +172,12 @@ def build_supported_channels(channel):
 			'rhel-i386-as-4' :  { 'arch' : 'i386' , 'subdir' : 'rh40' },
 			'rhel-x86_64-as-4' :  { 'arch' : 'x86_64' , 'subdir' : 'rh40_64' },
 		}
-	# SLES 11 channels
+	# SLES 11 channels are handled differently in SUSE Manager as each Service Pack (SP) is put in a parent channel.
+	# The SLES 11 channel below is hard-coded for SP3. If you use a different SP, adjust 'sles11-sp3-pool-x86_64' below.
 	elif options.channel == "sles11":
 		SUPPORTED_CHANNELS = {
 		#	'other_existing_base_channel' : { 'arch' : 'arch_type', 'subdir' : 'subdir within Dell repo' },
-			'sles11-sp1-pool-x86_64' :  { 'arch' : 'x86_64' , 'subdir' : 'suse11_64' },
+			'sles11-sp3-pool-x86_64' :  { 'arch' : 'x86_64' , 'subdir' : 'suse11_64' },
 		}
 	else:
 		# Should not really reach here, but just in case
@@ -205,7 +205,7 @@ def listall():
 
         return systems
 
-def build_system_list(vendor_id, only_systems):
+def build_system_list(only_systems):
 	'''Go through system ID file and look for matches for servers given'''
 	systems = {}
 
@@ -227,7 +227,7 @@ def build_system_list(vendor_id, only_systems):
 			if server == line.split(':')[0]:
 				if options.verbose: print BOLD + "+ Adding %s to requested system list." % server + ENDC
     				systemid = (line.rstrip().split(':'))[1]    # remove end-of-line, then split, then extract location '1'
-				full_system_id = "system.ven_0x1028.dev_" + systemid
+				full_system_id = "dev_" + systemid
 				systems[full_system_id] = server
 		 		found = True
     				break
@@ -531,7 +531,7 @@ def get_action_results(key, systems, om_version):
 	for system in systems:
 		if system['skip'] or not system['complete'] or system['system_id'] == 0: continue
 		if options.verbose: print "System ID for %s is: %s" % (system['name'], system['system_id'])
-		new_channel = DELL_INFO['label'] + '-' + om_version + '-' + SYSTEM_VENDOR_ID + '.dev_' + system['system_id'] + '-' + system['base_channel']
+		new_channel = DELL_INFO['label'] + '-' + om_version + '-dev_' + system['system_id'] + '-' + system['base_channel']
 		system['system_channel'] = new_channel
 		if options.verbose: print "  Subscribing %s to channel %s" % (system['name'], system['system_channel'])
 		if not subscribe(key, system['base_channel'], system['system_channel'], system['id'], system['name']):
@@ -601,7 +601,7 @@ def main():
 		# Build list based on --only-systems (if any) and add 'platform_independent'
 		# No need to build out system list if we're deleting channels
 		if not options.delete:
-			systems = build_system_list(SYSTEM_VENDOR_ID, only_systems)
+			systems = build_system_list(only_systems)
 			systems['platform_independent'] = PLATFORM_INDEPENDENT
 
 		# Build supported channel list based on --channel
@@ -656,7 +656,7 @@ def main():
 				url = repo_url + systems[system] + "/" + subdir
 				# Check if repo location exists. Some repos (RHEL 6 x86 for example) are not supported
 				if check_url(url) == False:
-					print BOLD + "  Repo requested '%s' does not exist." % url + ENDC
+					print BOLD + "  Repo requested '%s' does not exist, skipping." % url + ENDC
 					continue
 
 				print "  Checking child channel '%s'" % c_name
