@@ -31,7 +31,7 @@
  Dell-satellite-sync uses system IDs (4-character hex string) to create labels 
  for server-specific child channels. For example, the label for the RHEL 6
  child channel for the Dell PowerEdge R515 server is the somewhat cryptic
- 'dell-om-7.3.0-system.ven_0x1028.dev_0x0489-rhel-x86_64-server-6', but you shouldn't
+ 'dell-om-7.3.0-dev_0x0489-rhel-x86_64-server-6', but you shouldn't
  have to deal with channel labels at all. On the other hand, channel names
  (which are more commonly used) have more descriptive names such as
  "Dell OM 7.3.0 on per515 for rhel-x86_64-server-6".
@@ -135,7 +135,7 @@
  Known Issues
  ============
 
- * The check_url() function may not 100% effective.
+ * The check_url() function may not be 100% effective.
 
    This function is used to check the existance of remote repositories. If a
    repository doesn't exist, it ignores the request. Useful when asking for
@@ -196,65 +196,4 @@
  History
  =======
 
- * Wed Nov 13 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.2-1
- - Added OpenManage version in channels to be able to support OM upgrades.
-
- * Fri Nov 8 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1
- - Replaced check_url function to verify if desired yum repo exists.
-
- * Mon Jan 28 2013 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.1-1
- - Fixed bug when deleting child repo channels.
- - Fixed API compatability issue with RHN 5.4.1 (channel.software.removeRepo).
- - Added system ID for dx6004s.
-
- * Tue Oct 16 2012 Jose De la Rosa <jose_de_la_rosa@dell.com> 1.0.0-1
- - Major clean up for simpler use
- - Added configuration files in /etc/sysconfig/dell-satellite-sync/
- - Replaced rhnpush with API calls to create RHN repo & associate to channel.
- - Removed requirement to copy all repositories to a local directory.
- - It no longer imports all system-specific repositories by default.
- - Added --channel option to specify the OS parent channel to use.
- - Removed rsync option since its functionality is better suited separately.
- - Removed --all option since now only Dell systems can be subscribed.
- - Removed --gpg-url option since GPG keys are now imported from same place as
-   the repo location.
- - Removed --force option since I no longer use rhnpush to upload packages to
-   the RHN server.
- - The --delete option removes all unused RHN repositories and channels
-
- * Wed Nov 30 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.5-1
- - Added support for SUSE Manager 1.2
-
- * Tue Nov 8 2011 Jose De la Rosa <jose_de_la_rosa@dell.com> 0.4.4-1
- - Tested with Spacewalk 1.5 and fixed some typos
-
- * Wed Nov 10 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.3-1
- - Expanded man page with synopsis, examples, bugs
-
- * Sun Nov 8 2009 Scott Collier <boodle11@gmail.com> 0.4.2-1
- - created the man page
-
- * Wed Nov 7 2009 Vinny Valdez <vvaldez@redhat.com> 0.4.1-1
- - Fixed timeout values from 0.4, which were not sane
- - Added abort but report success/failed clients if Ctrl+c or 2 hour timeout
- - Fixed some output on client result waiting to clean it up
-
- * Wed Nov 5 2009 Vinny Valdez <vvaldez@redhat.com> 0.4-1
- - Added options "--rhel5-only" and "--rhel4-only" to work around a bug in some
-   of the Dell rpms that are being treated as the same in Satellite
- - Added option "--only-systems" that accepts a comma separated list of systems
-   to rsync and create child channels for
- - Added package removal from Satellite in the channels with --delete now
- - Added --exclude-from list if --only-systems is specified
- - Added --repo to specify a specific repo to pull from
- - Added timestamps to output
- - Fixed bug with --debug mode in version 0.3
-
- * Tue Oct 30 2009 Vinny Valdez <vvaldez@redhat.com> 0.3-1
- - Cleaned up some output on the client side actions
- - Added "raise" statement if using debug in some cases
- - Added summary of client actions at end of process
- - Added try/except on importing modules
-
- * Tue Oct 27 2009 Vinny Valdez <vvaldez@redhat.com> 0.2-1
- - Initial package created from version 0.2 of the source script
+ * Please refer to http://linux.dell.com/git/dell-satellite-sync.git/log/
