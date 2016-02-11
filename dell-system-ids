@@ -1,6 +1,6 @@
 # Mapping of system names to system device IDs for Dell PowerEdge servers
-# Latest file at http://linux.dell.com/dell-satellite-sync/dell-system-ids
-# Last Updated: Jan 28, 2013
+# Latest file at https://github.com/jose-delarosa/dell-satellite-sync
+# Last Updated: Feb 11, 2016
 dx6000:0x0430
 dx6004s:0x04ae
 dx6012s:0x043c
@@ -66,3 +66,16 @@ pet710:0x029b
 per730:0x0600
 per630:0x0601
 pet630:0x0602
+pem630:0x0670
+perfc630:0x061b
+per730xd:0x0627
+pefc430:0x0636
+per430:0x0639
+per530:0x063a
+pet430:0x063b
+pem630vrtx:0x063c
+pem820vrtx:0x063d
+pem830:0x0670
+pefc830:0x0671
+pem830vrtx:0x0672
+perc4130:0x0693
