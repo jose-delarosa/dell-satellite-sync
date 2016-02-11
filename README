@@ -170,16 +170,17 @@
  Getting Involved
  ================
 
- Read-only access to the git tree is available at:
+ Access to the git tree is available at:
 
- $ git clone http://linux.dell.com/git/dell-satellite-sync.git
+ $ git clone https://github.com/jose-delarosa/dell-satellite-sync
 
- For further development queries or if you'd like to make code contributions,
- please send an email to the mailing list linux-poweredge@dell.com.
+ For code contributions please submit a pull request. For other development
+ queries please send an email to the mailing list linux-poweredge@dell.com.
 
- Future Enhancements
- ===================
+ To-Do List
+ ==========
 
+ * Add support for RHEL 7
  * Add option to specify architecture of channels (i386/x86_64) desired.
  * Add option to re-sync all repositories, for the case when channels and
    corresponding repositories were created, but package sync failed for some
@@ -196,4 +197,4 @@
  History
  =======
 
- * Please refer to http://linux.dell.com/git/dell-satellite-sync.git/log/
+ * Please refer to https://github.com/jose-delarosa/dell-satellite-sync/commits
