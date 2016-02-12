@@ -1,12 +1,12 @@
  Introduction 
  ============
 
- Dell-satellite-sync is a tool used to import the Dell OpenManage (OM) yum
- repositories into an RHN Satellite / Spacewalk server and subscribe registered
- servers to the corresponding OM channels.
+ Dell-satellite-sync is a tool used to import the Dell OpenManage Server
+ Administrator (OMSA) yum repositories into an RHN Satellite / Spacewalk server
+ and subscribe registered servers to corresponding OMSA channels.
 
  For additional information visit http://linux.dell.com/dell-satellite-sync.
- For information on the OM yum repos, visit http://linux.dell.com/repo/hardware.
+ For information on OMSA yum repos, visit http://linux.dell.com/repo/hardware.
 
  Overview                                                                     |
  ========
@@ -37,14 +37,15 @@
  "Dell OM 7.3.0 on per515 for rhel-x86_64-server-6".
 
  The file /etc/sysconfig/dell-system-ids contains a mapping of server names to
- system IDs that are used to label OM child channels. This list was last updated
- on Oct 10, 2012. If you have a 12G PowerEdge server that started shipping after
- this date, check for the latest updated file in
- http://linux.dell.com/dell-satellite-sync, otherwise dell-satellite-sync will
+ system IDs that are used to label OMSA child channels. This list is updated
+ every few months and it is possible that it might be outdated at any given time
+ (though we try to keep up with new servers!). If a system ID for a newer
+ PowerEdge server is not in the dell-system-ids file, dell-satellite-sync will
  not be able to import the system-specific channel for your server.
 
  Dell-satellite-sync uses by default the yum repositories located in
- http://linux.dell.com/repo/hardware/latest, but you can use a mirror as well.
+ http://linux.dell.com/repo/hardware/latest, but you can use any mirror you'd
+ like.
 
  * Client actions
 
@@ -104,13 +105,13 @@
     # yum -y upgrade
     # /opt/dell/srvadmin/sbin/srvadmin-services.sh start
 
-    If you are using version 1.0.1 or earlier, then the only way to upgrade OM
-    is to remove the old channels ("--delete" option) and import the repositories
-    for the newer OM release.
+    If you are using version 1.0.1 or earlier, then the only way to upgrade OMSA
+    is to remove the old channels ("--delete" option) and import the
+    repositories for the newer OMSA release.
 
-    Dell-satellite-sync 1.0.2 has a new feature that adds the OM version to the
-    OM channel name and label, which allows registering a server to more then one
-    OM channel (and thus allowing package upgrades).
+    Dell-satellite-sync 1.0.2 has a new feature that adds the OMSA version to
+    the OMSA channel name and label, which allows registering a server to more
+    than one OMSA channel (and thus allowing package upgrades).
 
  Q. I imported the repositories from http://linux.dell.com/repo/hardware/latest,
     and I can see the channels listed in my satellite server, but it's not
